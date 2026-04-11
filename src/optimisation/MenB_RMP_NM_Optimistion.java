@@ -3,6 +3,8 @@ package optimisation;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -28,28 +30,28 @@ public class MenB_RMP_NM_Optimistion {
 	private final int[] opt_time_range;
 	private final String[] opt_outcome_csv;
 	private final double[][] opt_setting;
-
+	
+	private double opt_rel_tol = 1e-5;
+	private double opt_abs_tol = 1e-10;
+	private MaxEval opt_maxVal = MaxEval.unlimited();	
+	
 	private final String path_dirName;
 	private final String path_region_path;
 	private final String path_grp_size;
 
 	private final String path_seed_dir;
+	private final File file_seed_file;
 	private final String[] seed_file_lines;
 	private final String[] seed_file_header;
-	
-	private final double[][] param_boundaries;
-	
-	
-	private final double RELATIVE_TOLERANCE = 1e-5;
-	private final double ABSOLUTE_TOLERANCE = 1e-10;
-	private final MaxEval maxVal = MaxEval.unlimited(); // new MaxEval(numEval);
 
-	private boolean printProgress = false;
-	
-	
+	private final double[][] param_boundaries;	
+	private boolean printProgress = false; // Pass to ResidualFunc_RMP
 
-	public MenB_RMP_NM_Optimistion(String dirName) throws IOException {
+	private final String OPTDIR_FORMAT = "%s_%d"; // seed_dir_name, seed row number
+
+	public MenB_RMP_NM_Optimistion(String dirName, String seed_dir_name) throws IOException {
 		this.path_dirName = dirName;
+		this.path_seed_dir = seed_dir_name;
 
 		File file_opt_setting = new File(dirName, "optSetting.prop");
 		FileInputStream fIS = new FileInputStream(file_opt_setting);
@@ -75,7 +77,6 @@ public class MenB_RMP_NM_Optimistion {
 			}
 		}
 
-		path_seed_dir = prop.getProperty("PPOP_PATH_SEED_DIR");
 		path_region_path = prop.getProperty("PROP_PATH_REGION_MAPPING");
 		path_grp_size = prop.getProperty("PROP_PATH_GRP_SIZE");
 
@@ -86,32 +87,94 @@ public class MenB_RMP_NM_Optimistion {
 		opt_setting = (double[][]) util.PropValUtils.propStrToObject(prop.getProperty("PROP_OPT_SETTING"),
 				double[][].class);
 
+		if (prop.containsKey("PPOP_OPT_TOLERANCE")) {
+			double[] opt_tol = (double[]) util.PropValUtils.propStrToObject(prop.getProperty("PPOP_OPT_TOLERANCE"),
+					double[].class);
+			opt_rel_tol = opt_tol[0];
+			opt_abs_tol = opt_tol[1];
+		}
+
+		if (prop.containsKey("PPOP_OPT_MAX_EVAL")) {
+			opt_maxVal = new MaxEval(Integer.parseInt(prop.getProperty("PPOP_OPT_MAX_EVAL")));
+		}
+
 		// Set up initial parameter array
-		seed_file_lines = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(
-				new File(new File(dirName, path_seed_dir), String.format("%s.csv", path_seed_dir)));
+		file_seed_file = new File(new File(dirName, path_seed_dir), String.format("%s.csv", path_seed_dir));
+		seed_file_lines = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(file_seed_file);
 		seed_file_header = seed_file_lines[0].split(",");
-		
-		
+
 		param_boundaries = new double[2][param_to_opt.length];
 		for (int i = 0; i < param_to_opt.length; i++) {
 			double[] range = default_sample_range.get(param_to_opt[i]);
 			param_boundaries[0][i] = range[0];
 			param_boundaries[1][i] = range[1];
 		}
-		
 
 	}
 
 	public void runOptimisation() {
-		ExecutorService exec = Executors.newFixedThreadPool(seed_file_lines.length-1);			
+
+		boolean hasReplacement = false;
+		for (int p = 1; p < seed_file_lines.length; p++) {
+			File preResult = new File(new File(path_dirName), String.format(ResidualFunc_RMP.fileformat_Opt_Outcomes,
+					String.format(OPTDIR_FORMAT, path_seed_dir, p - 1)));
+			if (preResult.exists()) {
+				try {
+					String[] pre_lines = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(preResult);
+					double minR = Double.POSITIVE_INFINITY;
+					for (int i = 1; i < pre_lines.length; i++) {
+						String[] pre_line_ent = pre_lines[i].split(",");
+						double residue = Double.parseDouble(pre_line_ent[pre_line_ent.length - 1]);
+						if (residue < minR) {
+							hasReplacement = true;
+							StringBuilder sb = new StringBuilder();
+							for (int c = 0; c < seed_file_header.length; c++) {
+								if (c > 0) {
+									sb.append(',');
+								}
+								sb.append(pre_line_ent[c]);
+							}
+							seed_file_lines[p] = sb.toString();
+							minR = residue;
+						}
+					}
+					System.out.printf("%s: Initial value replaced with:\n   [%s] with residue of %f.\n", preResult.getName(),
+							seed_file_lines[p], minR);
+
+				} catch (IOException ex) {
+					System.err.printf("Warning! %s encountered in reading %s. Using default parameter instead.\n",
+							ex.toString(), preResult.getAbsolutePath());
+					ex.printStackTrace(System.err);
+				}
+			}
+		}
+		if (hasReplacement) {
+			try {
+				Files.copy(file_seed_file.toPath(),
+						new File(file_seed_file.getParent(), String.format("org_%s", file_seed_file.getName()))
+								.toPath());
+
+				PrintWriter pWri_seed = new PrintWriter(file_seed_file);
+				for (int i = 0; i < seed_file_lines.length; i++) {
+					pWri_seed.println(seed_file_lines[i]);
+				}
+				pWri_seed.close();
+
+			} catch (Exception e) {
+				e.printStackTrace(System.err);
+			}
+
+		}
+
+		ExecutorService exec = Executors.newFixedThreadPool(seed_file_lines.length - 1);
 		for (int p = 1; p < seed_file_lines.length; p++) {
 			String[] seed_file_def_val = seed_file_lines[p].split(",");
 			HashMap<String, Double> init_value = new HashMap<>();
 			for (int i = 0; i < seed_file_header.length; i++) {
 				init_value.put(seed_file_header[i], Double.valueOf(seed_file_def_val[i]));
-			}			
+			}
 			double[] param_init = new double[param_to_opt.length];
-			for (int i = 0; i < param_to_opt.length; i++) {				
+			for (int i = 0; i < param_to_opt.length; i++) {
 				param_init[i] = init_value.get(param_to_opt[i]).doubleValue();
 
 			}
@@ -120,23 +183,23 @@ public class MenB_RMP_NM_Optimistion {
 				if (cross_ref_sample_range.containsKey(param_to_opt[i])) {
 					param_init[i] = param_init[i] / init_value.get(cross_ref_sample_range.get(param_to_opt[i]));
 				}
-			}			
-			String[] path = new String[] { path_dirName,String.format("%s_%d", path_seed_dir, p-1),	path_region_path,path_grp_size};
-			
+			}
+			String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed_dir, p - 1),
+					path_region_path, path_grp_size };
+
 			// Objective function
 			ResidualFunc_RMP func = new ResidualFunc_RMP(path, new String[][] { seed_file_header, seed_file_def_val },
 					param_to_opt, cross_ref_sample_range, opt_outcome_csv, opt_setting, opt_time_range);
 			func.setPrintProgess(printProgress);
-			
-			// Set up simplex			
-			
-			MultivariateFunctionMappingAdapter wrapper = new MultivariateFunctionMappingAdapter(func, param_boundaries[0],
-					param_boundaries[1]);
-			
-			
+
+			// Set up simplex
+
+			MultivariateFunctionMappingAdapter wrapper = new MultivariateFunctionMappingAdapter(func,
+					param_boundaries[0], param_boundaries[1]);
+
 			ObjectiveFunction objFunc = new ObjectiveFunction(wrapper);
-			
-			Runnable runnable_opt = new Runnable() {				
+
+			Runnable runnable_opt = new Runnable() {
 				@Override
 				public void run() {
 					InitialGuess initial_guess;
@@ -145,13 +208,13 @@ public class MenB_RMP_NM_Optimistion {
 					initial_guess = new InitialGuess(wrapper.boundedToUnbounded(param_init));
 					simplex = new NelderMeadSimplex(param_init.length);
 
-					SimplexOptimizer optimizer = new SimplexOptimizer(RELATIVE_TOLERANCE, ABSOLUTE_TOLERANCE);
-					
+					SimplexOptimizer optimizer = new SimplexOptimizer(opt_rel_tol, opt_abs_tol);
+
 					try {
 						PointValuePair pV;
-						System.out.printf("Optimisation start Max Eval = %d.\n", maxVal.getMaxEval());
+						System.out.printf("Optimisation start Max Eval = %d.\n", opt_maxVal.getMaxEval());
 
-						pV = optimizer.optimize(objFunc, simplex, GoalType.MINIMIZE, initial_guess, maxVal);
+						pV = optimizer.optimize(objFunc, simplex, GoalType.MINIMIZE, initial_guess, opt_maxVal);
 						double[] point = wrapper.unboundedToBounded(pV.getPoint());
 
 						StringBuilder pt_str = new StringBuilder();
@@ -162,7 +225,8 @@ public class MenB_RMP_NM_Optimistion {
 							pt_str.append(String.format("%.5f", pt));
 						}
 
-						System.out.printf("Optimisation Completed.\nP = [%s], V = %f\n", pt_str.toString(), pV.getValue());
+						System.out.printf("Optimisation Completed.\nP = [%s], V = %f\n", pt_str.toString(),
+								pV.getValue());
 
 					} catch (org.apache.commons.math3.exception.TooManyEvaluationsException ex) {
 						System.out.printf("Eval limit of (ex.getMax=%d) reached.\nSimplex (bounded):\n", ex.getMax());
@@ -192,32 +256,31 @@ public class MenB_RMP_NM_Optimistion {
 						}
 
 					}
-					
-					
+
 				}
 			};
-			
-			if(seed_file_lines.length == 2) {
+
+			if (seed_file_lines.length == 2) {
 				runnable_opt.run();
-			}else {
+			} else {
 				exec.execute(runnable_opt);
 			}
 
 		}
-		
-		if(seed_file_lines.length > 2) {
+
+		if (seed_file_lines.length > 2) {
 			exec.shutdown();
 			try {
 				if (!exec.awaitTermination(2, TimeUnit.DAYS)) {
 					System.err.println("Thread time-out!");
 				}
-			} catch (InterruptedException e) {				
+			} catch (InterruptedException e) {
 				e.printStackTrace(System.err);
 			}
 		}
 
 	}
-	
+
 	public void setPrintProgress(boolean printProgress) {
 		this.printProgress = printProgress;
 	}

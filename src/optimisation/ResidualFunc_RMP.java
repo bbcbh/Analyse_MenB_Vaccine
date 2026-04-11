@@ -52,16 +52,16 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public static final int DEFAULT_PARAMS_INIT_VAL = 1;
 
 	public static final int OPT_SETTING_TARGET = 0;
-	public static final int OPT_SETTING_RATE = 1;
-	public static final int OPT_SETTING_MODEL_POP_SIZE = 2;
-	public static final int OPT_SETTING_WEIGHT = 3;
-
-	protected boolean printProgess = false;
+	public static final int OPT_SETTING_MODEL_POP_SIZE = 1;
+	public static final int OPT_SETTING_WEIGHT = 2;
 
 	public static final String fileformat_Opt_Outcomes = "OptProgress_ParamList_%s.csv";
 	public static final String fileformat_Simplex_cache = "OptProgress_Simplex_%s.csv";
 
+	protected boolean printProgess = false;
+
 	private HashMap<String, Double> eval_point_cache;
+	private double minResidue = Double.POSITIVE_INFINITY;
 
 	public ResidualFunc_RMP(String[] filepaths, String[][] default_params, String[] param_to_opt,
 			Map<String, String> param_cross_ref, String[] opt_outcome_csv, double[][] opt_setting,
@@ -118,7 +118,8 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public double value(double[] point) {
 		// Check if it is already cached
 		if (eval_point_cache.containsKey(Arrays.toString(point))) {
-			return eval_point_cache.get(Arrays.toString(point)).doubleValue();
+			double res = eval_point_cache.get(Arrays.toString(point)).doubleValue();
+			return res;
 		} else {
 			return value_eval(point);
 		}
@@ -144,6 +145,14 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		// Generate new working directory
 		File working_dir = new File(def_filepath[FILEPATH_SIM_DIR], //
 				String.format("OptDir_%s", def_filepath[FILEPATH_SEED_DIR]));
+		if (working_dir.exists()) {
+			// Remove previous working dir if already exist
+			try {
+				FileUtils.deleteDirectory(working_dir);
+			} catch (Exception ex) {
+				ex.printStackTrace(System.err);
+			}
+		}
 		working_dir.mkdirs();
 
 		File baseDir = new File(def_filepath[FILEPATH_SIM_DIR]);
@@ -213,7 +222,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			// Calculate objective function based on analysis
 			if (printProgess) {
-				System.out.printf("P=%s:\n", Arrays.toString(seed_val_str));
+				System.out.printf("P=%s\n", Arrays.toString(seed_val_str));
 			}
 
 			treatment_fit = 0;
@@ -244,7 +253,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 						// Calculate sq diff
 						double row_sq_diff = 0;
 						for (int s = 0; s < rowEnt.length; s++) {
-							double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * opt_setting[f][OPT_SETTING_RATE]
+							double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
 									/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
 							row_sq_diff += opt_setting[f][OPT_SETTING_WEIGHT]
 									* Math.pow(opt_setting[f][OPT_SETTING_TARGET] - converted_rate, 2);
@@ -266,6 +275,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				}
 
 				treatment_fit += residue_sum_by_outcome;
+			}
+			
+			if (printProgess) {
+				System.out.printf("R=%.f\n", treatment_fit);
 			}
 
 			// Generate outcome file
@@ -292,10 +305,14 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			pWri_simplexCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
 			pWri_simplexCache.close();
 
-			// System.exit(1);
-
-			// Remove working_dir recursively
-			FileUtils.deleteDirectory(working_dir);
+			if (treatment_fit < minResidue) {
+				minResidue = treatment_fit;
+				Files.move(working_dir.toPath(),
+						new File(working_dir.getParent(), String.format("BestFit_%s", working_dir.getName())).toPath());
+			} else {
+				// Remove working_dir recursively
+				FileUtils.deleteDirectory(working_dir);
+			}
 
 		} catch (Exception e) {
 			System.err.printf("Warning! %s encountered during running of parameter set: %s. Assume residue as Inf.\n",
