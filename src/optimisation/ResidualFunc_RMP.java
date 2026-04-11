@@ -278,7 +278,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			}
 			
 			if (printProgess) {
-				System.out.printf("R=%.f\n", treatment_fit);
+				System.out.printf("R=%f\n", treatment_fit);
 			}
 
 			// Generate outcome file

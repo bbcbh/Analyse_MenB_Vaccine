@@ -17,7 +17,7 @@ public class Launcher_Analysis {
 				MenB_RMP_NM_Optimistion opt = new MenB_RMP_NM_Optimistion(args[1], args[2]);				
 				for(int i = 2; i < args.length; i++) {
 					if(args[i].startsWith("-suppressOutput")) {											
-						opt.setPrintProgress(Boolean.parseBoolean(args[i].split("=")[1]));
+						opt.setPrintProgress(!Boolean.parseBoolean(args[i].split("=")[1]));
 					}
 				}
 				opt.runOptimisation();				
