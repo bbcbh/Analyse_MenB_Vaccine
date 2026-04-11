@@ -307,8 +307,11 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			if (treatment_fit < minResidue) {
 				minResidue = treatment_fit;
-				Files.move(working_dir.toPath(),
-						new File(working_dir.getParent(), String.format("BestFit_%s", working_dir.getName())).toPath());
+				File target_dir = new File(working_dir.getParent(), String.format("BestFit_%s", working_dir.getName()));
+				if(target_dir.exists()) {
+					FileUtils.deleteDirectory(target_dir);
+				}				
+				Files.move(working_dir.toPath(),target_dir.toPath());
 			} else {
 				// Remove working_dir recursively
 				FileUtils.deleteDirectory(working_dir);

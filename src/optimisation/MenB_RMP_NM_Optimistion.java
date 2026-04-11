@@ -45,7 +45,7 @@ public class MenB_RMP_NM_Optimistion {
 	private final String[] seed_file_header;
 
 	private final double[][] param_boundaries;	
-	private boolean printProgress = false; // Pass to ResidualFunc_RMP
+	private boolean printProgress = true; // Pass to ResidualFunc_RMP
 
 	private final String OPTDIR_FORMAT = "%s_%d"; // seed_dir_name, seed row number
 
