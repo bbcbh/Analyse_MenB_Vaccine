@@ -78,7 +78,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 		// Preset other fields
 		this.def_arg_simulation = new String[] { filepaths[FILEPATH_SIM_DIR],
-				"-seedMap=" + filepaths[FILEPATH_SEED_DIR] + "\\" + filepaths[FILEPATH_SEED_DIR] + ".csv",
+				"-seedMap=" + filepaths[FILEPATH_SEED_DIR] + File.separator + filepaths[FILEPATH_SEED_DIR] + ".csv",
 				"-export_skip_backup" };
 		;
 		this.def_arg_analysis = new String[] { filepaths[FILEPATH_SIM_DIR], filepaths[FILEPATH_REGION_MAP],
