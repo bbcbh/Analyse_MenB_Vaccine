@@ -57,6 +57,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 	public static final String fileformat_Opt_Outcomes = "OptProgress_ParamList_%s.csv";
 	public static final String fileformat_Simplex_cache = "OptProgress_Simplex_%s.csv";
+	public static final String fileformat_Output_txt = "Output.txt";
 
 	protected final boolean printProgess;
 
@@ -64,8 +65,8 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	private double minResidue = Double.POSITIVE_INFINITY;
 
 	public ResidualFunc_RMP(String[] filepaths, String[][] default_params, String[] param_to_opt,
-			Map<String, String> param_cross_ref, String[] opt_outcome_csv, double[][] opt_setting,
-			int[] opt_time_range, boolean printProgess) {
+			Map<String, String> param_cross_ref, String[] opt_outcome_csv, double[][] opt_setting, int[] opt_time_range,
+			boolean printProgess) {
 		super();
 		this.def_filepath = filepaths;
 		this.default_seed_file_header = default_params[DEFAULT_PARAMS_HEADER];
@@ -84,7 +85,9 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				"-export_skip_backup" };
 		;
 		this.def_arg_analysis = new String[] { filepaths[FILEPATH_SIM_DIR], filepaths[FILEPATH_REGION_MAP],
-				filepaths[FILEPATH_GRP_SIZE], String.format("%s=%s", Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS,printProgess), "-flag=6" };
+				filepaths[FILEPATH_GRP_SIZE],
+				String.format("%s=%s", Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS, printProgess),
+				"-flag=6" };
 
 		// Use with seed_val_str
 		seed_list_param_index_lookup = new HashMap<>();
@@ -161,8 +164,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		File[] copy_files = baseDir.listFiles(new FileFilter() {
 			@Override
 			public boolean accept(File pathname) {
-				return pathname.isFile() && !pathname.getName().startsWith("OptProgress_")
-						&& !pathname.getName().equals("optSettling.prop");
+				return pathname.isFile() && !pathname.getName().toLowerCase().startsWith("opt");
 			}
 		});
 
@@ -223,9 +225,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			analyse_optRes.analyse(args_analysis);
 
 			// Calculate objective function based on analysis
-			if (printProgess) {
-				System.out.printf("P=%s\n", Arrays.toString(seed_val_str));
-			}
+			File outTxt = new File(working_dir, fileformat_Output_txt);
+			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
+
+			wriOutTxt.printf("P=%s\n", Arrays.toString(seed_val_str));
 
 			treatment_fit = 0;
 			for (int f = 0; f < opt_outcome_csv.length; f++) {
@@ -271,17 +274,13 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				}
 				residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries; // Average of included rows
 
-				if (printProgess) {
-					System.out.printf("#%d: Average treatment = %f from %d entries\n", f,
-							treatment_rate_total / num_row_entries, num_row_entries);
-				}
+				wriOutTxt.printf("#%d: Average treatment = %f from %d entries\n", f,
+						treatment_rate_total / num_row_entries, num_row_entries);
 
 				treatment_fit += residue_sum_by_outcome;
 			}
-			
-			if (printProgess) {
-				System.out.printf("R=%f\n", treatment_fit);
-			}
+			wriOutTxt.printf("R=%f\n", treatment_fit);			
+			wriOutTxt.close();
 
 			// Generate outcome file
 			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
@@ -310,10 +309,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			if (treatment_fit < minResidue) {
 				minResidue = treatment_fit;
 				File target_dir = new File(working_dir.getParent(), String.format("BestFit_%s", working_dir.getName()));
-				if(target_dir.exists()) {
+				if (target_dir.exists()) {
 					FileUtils.deleteDirectory(target_dir);
-				}				
-				Files.move(working_dir.toPath(),target_dir.toPath());
+				}
+				Files.move(working_dir.toPath(), target_dir.toPath());
 			} else {
 				// Remove working_dir recursively
 				FileUtils.deleteDirectory(working_dir);
@@ -336,6 +335,6 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			pWri_seed.append(arr[i]);
 		}
 
-	}	
+	}
 
 }
