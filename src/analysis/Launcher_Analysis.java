@@ -8,7 +8,7 @@ import sim.Simulation_ClusterModelTransmission;
 public class Launcher_Analysis {
 
 	public static void main(String[] args) throws IOException {
-		if (args.length < 2) {
+		if ("-opt".equals(args[0])? args.length < 3 : args.length < 2) {
 			System.out.println(
 					"Usage: java -jar Analyse_MenB_Vaccine.jar BASEDIR_SIM PATH_REGION_MAPPING PATH_GRP_SIZE <-flag=BINARY_FLAG_OPTIONS> <-printProgress=TF>"
 							+ "\n  or java -jar Analyse_MenB_Vaccine.jar -opt BASEDIR_SIM SEED_DIR_NAME <-printProgress=TF>");
