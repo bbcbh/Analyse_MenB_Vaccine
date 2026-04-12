@@ -45,8 +45,8 @@ public class MenB_RMP_NM_Optimistion {
 	private final String[] seed_file_header;
 
 	private final double[][] param_boundaries;	
-	private boolean printProgress = true; // Pass to ResidualFunc_RMP
-
+	private boolean objFunc_printProgress = false; 
+	
 	private final String OPTDIR_FORMAT = "%s_%d"; // seed_dir_name, seed row number
 
 	public MenB_RMP_NM_Optimistion(String dirName, String seed_dir_name) throws IOException {
@@ -184,14 +184,14 @@ public class MenB_RMP_NM_Optimistion {
 					param_init[i] = param_init[i] / init_value.get(cross_ref_sample_range.get(param_to_opt[i]));
 				}
 			}
-			String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed_dir, p - 1),
+			String wk_dir_name = String.format(OPTDIR_FORMAT, path_seed_dir, p - 1);
+			String[] path = new String[] { path_dirName, wk_dir_name,
 					path_region_path, path_grp_size };
 
 			// Objective function
 			ResidualFunc_RMP func = new ResidualFunc_RMP(path, new String[][] { seed_file_header, seed_file_def_val },
-					param_to_opt, cross_ref_sample_range, opt_outcome_csv, opt_setting, opt_time_range);
-			func.setPrintProgess(printProgress);
-
+					param_to_opt, cross_ref_sample_range, opt_outcome_csv, opt_setting, opt_time_range, objFunc_printProgress);			
+			
 			// Set up simplex
 
 			MultivariateFunctionMappingAdapter wrapper = new MultivariateFunctionMappingAdapter(func,
@@ -212,7 +212,8 @@ public class MenB_RMP_NM_Optimistion {
 
 					try {
 						PointValuePair pV;
-						System.out.printf("Optimisation start Max Eval = %d.\n", opt_maxVal.getMaxEval());
+						System.out.printf("%s :Optimisation start Max Eval = %d.\n", 
+								wk_dir_name, opt_maxVal.getMaxEval());
 
 						pV = optimizer.optimize(objFunc, simplex, GoalType.MINIMIZE, initial_guess, opt_maxVal);
 						double[] point = wrapper.unboundedToBounded(pV.getPoint());
@@ -225,11 +226,13 @@ public class MenB_RMP_NM_Optimistion {
 							pt_str.append(String.format("%.5f", pt));
 						}
 
-						System.out.printf("Optimisation Completed.\nP = [%s], V = %f\n", pt_str.toString(),
+						System.out.printf("%s :Optimisation Completed.\nP = [%s], V = %f\n", 
+								wk_dir_name,
+								pt_str.toString(),
 								pV.getValue());
 
 					} catch (org.apache.commons.math3.exception.TooManyEvaluationsException ex) {
-						System.out.printf("Eval limit of (ex.getMax=%d) reached.\nSimplex (bounded):\n", ex.getMax());
+						System.out.printf("%s :Eval limit of (ex.getMax=%d) reached.\nSimplex (bounded):\n", wk_dir_name, ex.getMax());
 
 						PointValuePair[] res = simplex.getPoints();
 						Arrays.sort(res, new Comparator<PointValuePair>() {
@@ -251,7 +254,7 @@ public class MenB_RMP_NM_Optimistion {
 								pt_str.append(String.format("%.5f", pt));
 							}
 
-							System.out.printf("P = [%s], V = %f\n", pt_str.toString(), pV.getValue());
+							System.out.printf("%s :P = [%s], V = %f\n", wk_dir_name, pt_str.toString(), pV.getValue());
 
 						}
 
@@ -281,8 +284,8 @@ public class MenB_RMP_NM_Optimistion {
 
 	}
 
-	public void setPrintProgress(boolean printProgress) {
-		this.printProgress = printProgress;
+	public void setObjFunc_PrintProgress(boolean printProgress) {
+		this.objFunc_printProgress = printProgress;
 	}
 
 }

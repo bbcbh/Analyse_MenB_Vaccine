@@ -58,14 +58,14 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public static final String fileformat_Opt_Outcomes = "OptProgress_ParamList_%s.csv";
 	public static final String fileformat_Simplex_cache = "OptProgress_Simplex_%s.csv";
 
-	protected boolean printProgess = false;
+	protected final boolean printProgess;
 
 	private HashMap<String, Double> eval_point_cache;
 	private double minResidue = Double.POSITIVE_INFINITY;
 
 	public ResidualFunc_RMP(String[] filepaths, String[][] default_params, String[] param_to_opt,
 			Map<String, String> param_cross_ref, String[] opt_outcome_csv, double[][] opt_setting,
-			int[] opt_time_range) {
+			int[] opt_time_range, boolean printProgess) {
 		super();
 		this.def_filepath = filepaths;
 		this.default_seed_file_header = default_params[DEFAULT_PARAMS_HEADER];
@@ -75,14 +75,16 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		this.opt_outcome_csv = opt_outcome_csv;
 		this.opt_setting = opt_setting;
 		this.opt_time_range = opt_time_range;
+		this.printProgess = printProgess;
 
 		// Preset other fields
 		this.def_arg_simulation = new String[] { filepaths[FILEPATH_SIM_DIR],
 				"-seedMap=" + filepaths[FILEPATH_SEED_DIR] + File.separator + filepaths[FILEPATH_SEED_DIR] + ".csv",
+				String.format("%s=%s", Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS, printProgess),
 				"-export_skip_backup" };
 		;
 		this.def_arg_analysis = new String[] { filepaths[FILEPATH_SIM_DIR], filepaths[FILEPATH_REGION_MAP],
-				filepaths[FILEPATH_GRP_SIZE], "-suppressOutput=true", "-flag=6" };
+				filepaths[FILEPATH_GRP_SIZE], String.format("%s=%s", Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS,printProgess), "-flag=6" };
 
 		// Use with seed_val_str
 		seed_list_param_index_lookup = new HashMap<>();
@@ -334,10 +336,6 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			pWri_seed.append(arr[i]);
 		}
 
-	}
-
-	public void setPrintProgess(boolean printProgess) {
-		this.printProgess = printProgess;
-	}
+	}	
 
 }

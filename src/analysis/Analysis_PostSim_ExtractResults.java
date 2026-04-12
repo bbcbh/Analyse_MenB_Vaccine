@@ -13,6 +13,8 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import sim.Simulation_ClusterModelTransmission;
+
 public class Analysis_PostSim_ExtractResults {
 
 	Pattern pattern_sim = Pattern.compile("Seed_List_P8_(\\d+)");
@@ -74,8 +76,8 @@ public class Analysis_PostSim_ExtractResults {
 				flag_extract_timetrend = ((1 << 1 & flag) != 0);
 				flag_region_extract = ((1 << 2 & flag) != 0);
 			}
-			if (args[i].startsWith("-suppressOutput=")) {
-				flag_suppressOutput = Boolean.parseBoolean(args[i].substring("-suppressOutput=".length()));
+			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
+				flag_suppressOutput = !Boolean.parseBoolean(args[i].substring(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS.length()));
 			}
 		}
 
