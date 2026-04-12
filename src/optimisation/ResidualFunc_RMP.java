@@ -229,6 +229,11 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
 
 			wriOutTxt.printf("P=%s\n", Arrays.toString(seed_val_str));
+			if(printProgess) {
+				System.out.printf("P=%s\n", Arrays.toString(seed_val_str));
+			}
+			
+			
 
 			treatment_fit = 0;
 			for (int f = 0; f < opt_outcome_csv.length; f++) {
@@ -276,10 +281,19 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 				wriOutTxt.printf("#%d: Average treatment = %f from %d entries\n", f,
 						treatment_rate_total / num_row_entries, num_row_entries);
+				
+				
+				if(printProgess) {
+					System.out.printf("#%d: Average treatment = %f from %d entries\n", f,
+							treatment_rate_total / num_row_entries, num_row_entries);
+				}
 
 				treatment_fit += residue_sum_by_outcome;
 			}
-			wriOutTxt.printf("R=%f\n", treatment_fit);			
+			wriOutTxt.printf("R=%f\n", treatment_fit);
+			if(printProgess) {
+				System.out.printf("R=%f\n", treatment_fit);
+			}						
 			wriOutTxt.close();
 
 			// Generate outcome file
