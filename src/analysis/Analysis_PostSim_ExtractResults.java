@@ -108,6 +108,8 @@ public class Analysis_PostSim_ExtractResults {
 		);
 
 		// Code start
+		
+		System.out.printf("Checking/Analysing %s:\n", basedir_sim.getAbsolutePath());
 
 		File[] dirs_sim = basedir_sim.listFiles(new FileFilter() {
 			@Override
