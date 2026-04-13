@@ -21,17 +21,19 @@ public class Analysis_PostSim_ExtractResults {
 
 	// Check completeness
 	Pattern[] pattern_check_file = new Pattern[] { //
-			Pattern.compile("Incidence_Person_.*csv\\.7z"), //
-			Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z"), //
+			//Pattern.compile("Incidence_Person_.*csv\\.7z"), //
+			//Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z"), //
 			// Pattern.compile("Vaccine_Coverage_.*csv\\.7z"), //
-			Pattern.compile("Treatment_Person_-?\\d+.*csv\\.7z"), //
+			// Pattern.compile("Treatment_Person_-?\\d+.*csv\\.7z"), //
 			// Pattern.compile("InfectHist_.*csv\\.7z")
+			Pattern.compile("Treatment_by_GrpLoc_.*csv\\.7z"),
+			Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z"),
 	};
 
 	// Extract time trend
 	Map<String, Pattern> map_timetrend = Map.ofEntries( //
-			Map.entry("Timetrend_Incidence_Person_%s.csv", Pattern.compile("Incidence_Person_.*csv\\.7z")), //
-			Map.entry("Timetrend_Treatment_Person_%s.csv", Pattern.compile("Treatment_Person_.*csv\\.7z")), //
+			//Map.entry("Timetrend_Incidence_Person_%s.csv", Pattern.compile("Incidence_Person_.*csv\\.7z")), //
+			//Map.entry("Timetrend_Treatment_Person_%s.csv", Pattern.compile("Treatment_Person_.*csv\\.7z")), //
 			Map.entry("Timetrend_Treatment_by_GrpLoc_%s.csv", Pattern.compile("Treatment_by_GrpLoc_.*csv\\.7z")), //
 			Map.entry("Timetrend_Infectious_by_GrpLoc_%s.csv", Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z")), //
 			Map.entry("Timetrend_Infectious_by_GrpRegion_%s.csv", Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z")) //
@@ -67,7 +69,7 @@ public class Analysis_PostSim_ExtractResults {
 		boolean flag_extract_timetrend = true;
 		boolean flag_region_extract = true;
 
-		boolean flag_suppressOutput = false;
+		boolean flag_printProgress = false;
 
 		for (int i = 3; i < args.length; i++) {
 			if (args[i].startsWith("-flag=")) {
@@ -77,7 +79,8 @@ public class Analysis_PostSim_ExtractResults {
 				flag_region_extract = ((1 << 2 & flag) != 0);
 			}
 			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
-				flag_suppressOutput = !Boolean.parseBoolean(args[i].substring(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS.length()));
+				String[] ent = args[i].split("=");								
+				flag_printProgress = Boolean.parseBoolean(ent[ent.length-1]);
 			}
 		}
 
@@ -134,7 +137,7 @@ public class Analysis_PostSim_ExtractResults {
 
 			}
 
-			if (!flag_suppressOutput) {
+			if (flag_printProgress) {
 				System.out.printf("# of incomplete sim directory = %d\n", incomplete_dirs.size());
 			}
 
@@ -184,7 +187,7 @@ public class Analysis_PostSim_ExtractResults {
 						}
 					});
 					if (sel_file.length == 1) {
-						if (!flag_suppressOutput) {
+						if (flag_printProgress) {
 							System.out.printf("Extracting data from %s\n", sel_file[0].getAbsolutePath());
 						}
 						try {
@@ -332,14 +335,14 @@ public class Analysis_PostSim_ExtractResults {
 
 					p_f_timetrend.close();
 
-					if (!flag_suppressOutput) {
+					if (flag_printProgress) {
 						System.out.printf("Time trend for %s generated at %s\n", col_name,
 								f_timetrend.getAbsolutePath());
 					}
 
 				}
 
-				if (!flag_suppressOutput) {
+				if (flag_printProgress) {
 					System.out.printf("Time trend extract for %s completed.\n", timetrendEntry.getKey());
 				}
 			}
@@ -528,7 +531,7 @@ public class Analysis_PostSim_ExtractResults {
 								}
 							}
 						}
-						if (!flag_suppressOutput) {
+						if (flag_printProgress) {
 							System.out.printf("Data extracted from %s.\n", datasel_file.getName());
 						}
 
@@ -566,7 +569,7 @@ public class Analysis_PostSim_ExtractResults {
 
 						pWri_out.close();
 
-						if (!flag_suppressOutput) {
+						if (flag_printProgress) {
 							System.out.printf("Regional specific output generated at %s\n",
 									output_file.getAbsolutePath());
 						}
