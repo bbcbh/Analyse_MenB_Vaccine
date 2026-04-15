@@ -39,7 +39,8 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	final Map<String, String> param_cross_ref;
 
 	final String[] opt_outcome_csv;
-	// Format: double[OUT_COME_NUMBER]{target_val, conversion factor, weight}
+	// Format: double[OUT_COME_NUMBER]{target_val, conversion factor, weight,
+	// weight_adj_per_step}
 	final double[][] opt_setting;
 	final int[] opt_time_range;
 
@@ -54,6 +55,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public static final int OPT_SETTING_TARGET = 0;
 	public static final int OPT_SETTING_MODEL_POP_SIZE = 1;
 	public static final int OPT_SETTING_WEIGHT = 2;
+	public static final int OPT_SETTING_WEIGHT_ADJ_PER_STEP = 3;
 
 	public static final String fileformat_Opt_Outcomes = "OptProgress_ParamList_%s.csv";
 	public static final String fileformat_Simplex_cache = "OptProgress_Simplex_%s.csv";
@@ -229,11 +231,9 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
 
 			wriOutTxt.printf("P=%s\n", Arrays.toString(seed_val_str));
-			if(printProgess) {
+			if (printProgess) {
 				System.out.printf("P=%s\n", Arrays.toString(seed_val_str));
 			}
-			
-			
 
 			treatment_fit = 0;
 			for (int f = 0; f < opt_outcome_csv.length; f++) {
@@ -244,6 +244,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 				double treatment_rate_total = 0; // Might remove
 
+				double step_adj = 1;
 				for (int r = 1; r < lines.length; r++) {
 					double[] pre_rowEnt = null;
 					String[] val = lines[r].split(",");
@@ -265,9 +266,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 						for (int s = 0; s < rowEnt.length; s++) {
 							double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
 									/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
-							row_sq_diff += opt_setting[f][OPT_SETTING_WEIGHT]
+							row_sq_diff += step_adj * opt_setting[f][OPT_SETTING_WEIGHT]
 									* Math.pow(opt_setting[f][OPT_SETTING_TARGET] - converted_rate, 2);
 							treatment_rate_total += converted_rate;
+
 						}
 
 						row_sq_diff = row_sq_diff / rowEnt.length; // Average of all simulation (if more than one)
@@ -276,14 +278,17 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 						pre_rowEnt = rowEnt;
 						num_row_entries++;
 					}
+
+					if (OPT_SETTING_WEIGHT_ADJ_PER_STEP < opt_setting[f].length) {
+						step_adj *= opt_setting[f][OPT_SETTING_WEIGHT_ADJ_PER_STEP];
+					}
 				}
 				residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries; // Average of included rows
 
 				wriOutTxt.printf("#%d: Average treatment = %f from %d entries\n", f,
 						treatment_rate_total / num_row_entries, num_row_entries);
-				
-				
-				if(printProgess) {
+
+				if (printProgess) {
 					System.out.printf("#%d: Average treatment = %f from %d entries\n", f,
 							treatment_rate_total / num_row_entries, num_row_entries);
 				}
@@ -291,9 +296,9 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				treatment_fit += residue_sum_by_outcome;
 			}
 			wriOutTxt.printf("R=%f\n", treatment_fit);
-			if(printProgess) {
+			if (printProgess) {
 				System.out.printf("R=%f\n", treatment_fit);
-			}						
+			}
 			wriOutTxt.close();
 
 			// Generate outcome file
