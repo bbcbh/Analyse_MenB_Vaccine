@@ -17,7 +17,7 @@ import sim.Simulation_ClusterModelTransmission;
 
 public class Analysis_PostSim_ExtractResults {
 
-	Pattern pattern_sim = Pattern.compile("Seed_List_P8_(\\d+)");
+	Pattern pattern_sim = Pattern.compile("Seed_List.*_(\\d+)");
 
 	// Check completeness
 	Pattern[] pattern_check_file = new Pattern[] { //
