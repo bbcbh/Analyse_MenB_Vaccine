@@ -11,7 +11,7 @@ public class Launcher_Analysis {
 		if ("-opt".equals(args[0])? args.length < 3 : args.length < 2) {
 			System.out.println(
 					"Usage: java -jar Analyse_MenB_Vaccine.jar BASEDIR_SIM PATH_REGION_MAPPING PATH_GRP_SIZE <-flag=BINARY_FLAG_OPTIONS> <-printProgress=TF>"
-							+ "\n  or java -jar Analyse_MenB_Vaccine.jar -opt BASEDIR_SIM SEED_DIR_NAME <-printProgress=TF>");
+							+ "\n  or java -jar Analyse_MenB_Vaccine.jar -opt BASEDIR_SIM SEED_DIR_NAME <-printProgress=TF> <-optType=OPT_TYPE>");
 			System.exit(0);
 		} else {
 			if ("-opt".equals(args[0])) {										
@@ -20,6 +20,9 @@ public class Launcher_Analysis {
 					if(args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {											
 						opt.setObjFunc_PrintProgress(Boolean.parseBoolean(args[i].split("=")[1]));
 					}
+					if(args[i].startsWith("-optType")){
+						opt.setOptType(Integer.parseInt(args[i].split("=")[1]));
+					}															
 				}
 				opt.runOptimisation();				
 
