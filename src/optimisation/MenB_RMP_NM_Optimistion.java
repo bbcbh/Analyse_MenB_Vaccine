@@ -341,7 +341,7 @@ public class MenB_RMP_NM_Optimistion {
 							System.out.printf("%s :CMAES Optimisation Completed.\nP = [%s], V = %f\n", wk_dir_name,
 									pt_str.toString(), pV.getValue());
 						} catch (org.apache.commons.math3.exception.TooManyEvaluationsException ex) {
-							System.out.printf("%s :CMAES Optimisation Eval limit of (ex.getMax=%d) reached");
+							System.out.printf("%s :CMAES Optimisation Eval limit of (ex.getMax=%d) reached\n",wk_dir_name, ex.getMax());
 						}
 
 						break;
@@ -378,7 +378,7 @@ public class MenB_RMP_NM_Optimistion {
 									wk_dir_name, pt_str.toString(), pV.getValue());
 
 						} catch (org.apache.commons.math3.exception.TooManyEvaluationsException ex) {
-							System.out.printf("%s :BOBYQA Optimisation Eval limit of (ex.getMax=%d) reached");
+							System.out.printf("%s :BOBYQA Optimisation Eval limit of (ex.getMax=%d) reached\n",wk_dir_name, ex.getMax());
 						}
 
 						break;
@@ -406,7 +406,7 @@ public class MenB_RMP_NM_Optimistion {
 									wk_dir_name, pt_str.toString(), pV.getValue());
 
 						} catch (org.apache.commons.math3.exception.TooManyEvaluationsException ex) {
-							System.out.printf("%s :POWELL Optimisation Eval limit of (ex.getMax=%d) reached");
+							System.out.printf("%s :POWELL Optimisation Eval limit of (ex.getMax=%d) reached\n",wk_dir_name, ex.getMax());
 						}
 
 						break;
