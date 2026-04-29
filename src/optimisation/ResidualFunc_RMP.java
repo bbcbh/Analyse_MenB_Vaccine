@@ -39,8 +39,11 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	final Map<String, String> param_cross_ref;
 
 	final String[] opt_outcome_csv;
-	// Format: double[OUT_COME_NUMBER]{target_val, conversion factor, weight,
+	// Format:
+	// double[OUTCOME_NUMBER]{target_val, conversion factor, weight,
 	// weight_adj_per_step}
+	// or double[OUTCOME_NUMBER] { Double.NaN, conversion factor, weight,
+	// weight_adj_per_step, target_val_0,...}
 	final double[][] opt_setting;
 	final int[] opt_time_range;
 
@@ -57,9 +60,9 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public static final int OPT_SETTING_WEIGHT = 2;
 	public static final int OPT_SETTING_WEIGHT_ADJ_PER_STEP = 3;
 
-	public static final String fileformat_Opt_Outcomes = "OptProgress_ParamList_%s.csv";
-	public static final String fileformat_Simplex_cache = "OptProgress_Simplex_%s.csv";
-	public static final String fileformat_Output_txt = "Output.txt";
+	public static final String fileformat_opt_outcomes = "OptProgress_ParamList_%s.csv";
+	public static final String fileformat_point_cache = "OptProgress_PointCache_%s.csv";
+	public static final String fileformat_output_txt = "Output.txt";
 
 	protected final boolean printProgess;
 
@@ -105,7 +108,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		// Write simplex values to cache
 		eval_point_cache = new HashMap<>();
 		File simplexCache = new File(def_filepath[FILEPATH_SIM_DIR],
-				String.format(fileformat_Simplex_cache, def_filepath[FILEPATH_SEED_DIR]));
+				String.format(fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
 		if (simplexCache.exists()) {
 			try {
 				String[] ent = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(simplexCache);
@@ -210,6 +213,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			};
 			sim.setPrintProgress(printProgess);
+			
 			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
 
 			// Generate analyse result
@@ -224,10 +228,11 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			analyse_optRes.setPattern_sim(Pattern.compile(seedDir.getName()));
 
+			
 			analyse_optRes.analyse(args_analysis);
-
+			
 			// Calculate objective function based on analysis
-			File outTxt = new File(working_dir, fileformat_Output_txt);
+			File outTxt = new File(working_dir, fileformat_output_txt);
 			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
 
 			wriOutTxt.printf("P=%s\n", Arrays.toString(seed_val_str));
@@ -245,7 +250,12 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				double treatment_rate_total = 0; // Might remove
 
 				double step_adj = 1;
-				for (int r = 1; r < lines.length; r++) {
+				int opt_target_pt = OPT_SETTING_TARGET;
+
+				if (Double.isNaN(opt_setting[f][OPT_SETTING_TARGET])) {
+					opt_target_pt = OPT_SETTING_WEIGHT_ADJ_PER_STEP + 1;
+				}
+				for (int r = 1; r < lines.length && opt_target_pt < opt_setting[f].length; r++) {
 					double[] pre_rowEnt = null;
 					String[] val = lines[r].split(",");
 					int time = Integer.parseInt(val[0]);
@@ -264,33 +274,43 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 						// Calculate sq diff
 						double row_sq_diff = 0;
 						for (int s = 0; s < rowEnt.length; s++) {
-							double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
-									/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
-							row_sq_diff += step_adj * opt_setting[f][OPT_SETTING_WEIGHT]
-									* Math.pow(opt_setting[f][OPT_SETTING_TARGET] - converted_rate, 2);
-							treatment_rate_total += converted_rate;
-
+							if (opt_target_pt < opt_setting[f].length) {
+								double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
+										/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
+								row_sq_diff += step_adj * opt_setting[f][OPT_SETTING_WEIGHT]
+										* Math.pow(opt_setting[f][opt_target_pt] - converted_rate, 2);
+								treatment_rate_total += converted_rate;
+							}
 						}
-
 						row_sq_diff = row_sq_diff / rowEnt.length; // Average of all simulation (if more than one)
 						residue_sum_by_outcome += row_sq_diff;
 
 						pre_rowEnt = rowEnt;
-						num_row_entries++;
+						if (opt_target_pt < opt_setting[f].length) {
+							num_row_entries++;
+							if (Double.isNaN(opt_setting[f][OPT_SETTING_TARGET])) {
+								opt_target_pt++;
+							}
+							if (OPT_SETTING_WEIGHT_ADJ_PER_STEP < opt_setting[f].length) {
+								step_adj *= opt_setting[f][OPT_SETTING_WEIGHT_ADJ_PER_STEP];
+							}
+						}
 					}
 
-					if (OPT_SETTING_WEIGHT_ADJ_PER_STEP < opt_setting[f].length) {
-						step_adj *= opt_setting[f][OPT_SETTING_WEIGHT_ADJ_PER_STEP];
-					}
 				}
-				residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries; // Average of included rows
+				String outputFormat = "#%d: SUM_SQ_DIFF = %f from %d entries\n"; 
+				double outputPrint = residue_sum_by_outcome;
+				
+				if (!Double.isNaN(opt_setting[f][OPT_SETTING_TARGET])) {
+					residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries; 
+					outputFormat = "#%d: Average treatment = %f from %d entries\n"; // Average of included rows
+					outputPrint = treatment_rate_total / num_row_entries;
+				}
 
-				wriOutTxt.printf("#%d: Average treatment = %f from %d entries\n", f,
-						treatment_rate_total / num_row_entries, num_row_entries);
+				wriOutTxt.printf(outputFormat, f,outputPrint, num_row_entries);
 
 				if (printProgess) {
-					System.out.printf("#%d: Average treatment = %f from %d entries\n", f,
-							treatment_rate_total / num_row_entries, num_row_entries);
+					System.out.printf(outputFormat, f,outputPrint, num_row_entries);
 				}
 
 				treatment_fit += residue_sum_by_outcome;
@@ -303,7 +323,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			// Generate outcome file
 			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(fileformat_Opt_Outcomes, def_filepath[FILEPATH_SEED_DIR]));
+					String.format(fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
 
 			PrintWriter pWri_outcome;
 			if (!file_outcome.exists()) {
@@ -319,11 +339,11 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			pWri_outcome.println();
 			pWri_outcome.close();
 
-			File file_simplexCache = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(fileformat_Simplex_cache, def_filepath[FILEPATH_SEED_DIR]));
-			PrintWriter pWri_simplexCache = new PrintWriter(new FileWriter(file_simplexCache, true));
-			pWri_simplexCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
-			pWri_simplexCache.close();
+			File file_pointCache = new File(def_filepath[FILEPATH_SIM_DIR],
+					String.format(fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
+			PrintWriter pWri_pointCache = new PrintWriter(new FileWriter(file_pointCache, true));
+			pWri_pointCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
+			pWri_pointCache.close();
 
 			if (treatment_fit < minResidue) {
 				minResidue = treatment_fit;

@@ -157,7 +157,7 @@ public class MenB_RMP_NM_Optimistion {
 
 		boolean hasReplacement = false;
 		for (int p = 1; p < seed_file_lines.length; p++) {
-			File preResult = new File(new File(path_dirName), String.format(ResidualFunc_RMP.fileformat_Opt_Outcomes,
+			File preResult = new File(new File(path_dirName), String.format(ResidualFunc_RMP.fileformat_opt_outcomes,
 					String.format(OPTDIR_FORMAT, path_seed_dir, p - 1)));
 			if (preResult.exists()) {
 				try {
