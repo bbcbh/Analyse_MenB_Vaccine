@@ -15,45 +15,39 @@ import java.util.regex.Pattern;
 
 import sim.Simulation_ClusterModelTransmission;
 
-public class Analysis_PostSim_ExtractResults {
+public class Analysis_PostSim_ExtractTimeTrends {
 
 	Pattern pattern_sim = Pattern.compile("Seed_List.*_(\\d+)");
 
 	// Check completeness
 	Pattern[] pattern_check_file = new Pattern[] { //
-			//Pattern.compile("Incidence_Person_.*csv\\.7z"), //
-			//Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z"), //
+			// Pattern.compile("Incidence_Person_.*csv\\.7z"), //
+			// Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z"), //
 			// Pattern.compile("Vaccine_Coverage_.*csv\\.7z"), //
 			// Pattern.compile("Treatment_Person_-?\\d+.*csv\\.7z"), //
 			// Pattern.compile("InfectHist_.*csv\\.7z")
-			Pattern.compile("Treatment_by_GrpLoc_.*csv\\.7z"),
-			Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z"),
-	};
+			Pattern.compile("Treatment_by_GrpLoc_.*csv\\.7z"), Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z"), };
 
 	// Extract time trend
 	Map<String, Pattern> map_timetrend = Map.ofEntries( //
-			//Map.entry("Timetrend_Incidence_Person_%s.csv", Pattern.compile("Incidence_Person_.*csv\\.7z")), //
-			//Map.entry("Timetrend_Treatment_Person_%s.csv", Pattern.compile("Treatment_Person_.*csv\\.7z")), //
+			Map.entry("Timetrend_Incidence_Person_%s.csv", Pattern.compile("Incidence_Person_.*csv\\.7z")), //
+			Map.entry("Timetrend_Treatment_Person_%s.csv", Pattern.compile("Treatment_Person_.*csv\\.7z")), //
 			Map.entry("Timetrend_Treatment_by_GrpLoc_%s.csv", Pattern.compile("Treatment_by_GrpLoc_.*csv\\.7z")), //
 			Map.entry("Timetrend_Infectious_by_GrpLoc_%s.csv", Pattern.compile("Infectious_by_GrpLoc_.*csv\\.7z")), //
 			Map.entry("Timetrend_Infectious_by_GrpRegion_%s.csv", Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z")) //
 	);
-	
-	String[][] region_extract_array = new String[][] {		
-		new String[] { //
-				"Timetrend_Treatment_by_GrpLoc_%s.csv", //
-				"Timetrend_Infectious_by_GrpLoc_%s.csv", //
 
-		},
-		new String[] { //
-				"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
-				"Timetrend_Infectious_by_GrpLoc_Grp_%d_Loc_%d.csv", //
-		},
-		new String[] { //
-				"Timetrend_Treatment_%s_at_%s.csv", //
-				"Timetrend_Infectious_%s_at_%s.csv", //
-		}		
-	};		
+	String[][] region_extract_array = new String[][] { new String[] { //
+			"Timetrend_Treatment_by_GrpLoc_%s.csv", //
+			"Timetrend_Infectious_by_GrpLoc_%s.csv", //
+
+			}, new String[] { //
+					"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
+					"Timetrend_Infectious_by_GrpLoc_Grp_%d_Loc_%d.csv", //
+			}, new String[] { //
+					"Timetrend_Treatment_%s_at_%s.csv", //
+					"Timetrend_Infectious_%s_at_%s.csv", //
+			} };
 
 	public void setMap_timetrend(Map<String, Pattern> map_timetrend) {
 		this.map_timetrend = map_timetrend;
@@ -79,8 +73,8 @@ public class Analysis_PostSim_ExtractResults {
 				flag_region_extract = ((1 << 2 & flag) != 0);
 			}
 			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
-				String[] ent = args[i].split("=");								
-				flag_printProgress = Boolean.parseBoolean(ent[ent.length-1]);
+				String[] ent = args[i].split("=");
+				flag_printProgress = Boolean.parseBoolean(ent[ent.length - 1]);
 			}
 		}
 
@@ -98,9 +92,9 @@ public class Analysis_PostSim_ExtractResults {
 
 		int model_pop_size = 1000000;
 
-		String[] datasel_by_regions =    region_extract_array[0];
+		String[] datasel_by_regions = region_extract_array[0];
 		String[] strformat_datasel_csv = region_extract_array[1];
-		String[] datasel_output_fname =  region_extract_array[2];
+		String[] datasel_output_fname = region_extract_array[2];
 
 		Map<String, int[]> map_timetrend_grpIncl = Map.ofEntries( //
 				Map.entry("Indigenous", new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }) // Indigenous
@@ -201,12 +195,13 @@ public class Analysis_PostSim_ExtractResults {
 							} else {
 								// Direct CSV version
 								lineMap = new HashMap<>();
-								String[] lines = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(sel_file[0]);
-								ArrayList<String[]>  lineSp = new ArrayList<>();
-								for(String line : lines) {
+								String[] lines = util.Util_7Z_CSV_Entry_Extract_Callable
+										.extracted_lines_from_text(sel_file[0]);
+								ArrayList<String[]> lineSp = new ArrayList<>();
+								for (String line : lines) {
 									lineSp.add(line.split(","));
 								}
-								lineMap.put(sel_file[0].getName(), lineSp);								
+								lineMap.put(sel_file[0].getName(), lineSp);
 							}
 
 							for (Entry<String, ArrayList<String[]>> lineEnt : lineMap.entrySet()) {
@@ -256,97 +251,101 @@ public class Analysis_PostSim_ExtractResults {
 					}
 				}
 
-				// Printing of outputs
-				String[] time_col = new String[0];
-				ArrayList<String> sim_key_array = new ArrayList<>();
+				if (timetrendMap.isEmpty()) {					
+					System.out.printf("Extract of time trend for \"%s\" skipped.\n", tt_name);					
+				}else {
+					// Printing of outputs
+					String[] time_col = new String[0];
+					ArrayList<String> sim_key_array = new ArrayList<>();
 
-				HashMap<String, String[]> map_time = timetrendMap.remove("Time");
+					HashMap<String, String[]> map_time = timetrendMap.remove("Time");
 
-				for (Entry<String, String[]> ent : map_time.entrySet()) {
-					sim_key_array.add(ent.getKey());
-					String[] tCol = ent.getValue();
-					if (tCol.length > time_col.length) {
-						time_col = tCol;
-					}
-				}
-
-				sim_key_array.sort(new Comparator<String>() {
-					@Override
-					public int compare(String o1, String o2) {
-						String[] s1 = o1.split(":");
-						String[] s2 = o2.split(":");
-						int res = 0;
-
-						for (int p = 0; p < Math.min(s1.length, s2.length) && res == 0; p++) {
-							switch (p) {
-							case 2:
-								res = Integer.compare(Integer.parseInt(s1[p]), Integer.parseInt(s2[p]));
-								break;
-							default:
-								res = s1[p].compareTo(s2[p]);
-							}
+					for (Entry<String, String[]> ent : map_time.entrySet()) {
+						sim_key_array.add(ent.getKey());
+						String[] tCol = ent.getValue();
+						if (tCol.length > time_col.length) {
+							time_col = tCol;
 						}
-
-						return res;
-					}
-				});
-
-				for (Entry<String, HashMap<String, String[]>> tt_map_by_col : timetrendMap.entrySet()) {
-					String col_name = tt_map_by_col.getKey();
-					HashMap<String, String[]> tt_map_by_sim = tt_map_by_col.getValue();
-
-					StringBuilder[] linesbuilder = new StringBuilder[time_col.length];
-					for (int r = 0; r < linesbuilder.length; r++) {
-						linesbuilder[r] = new StringBuilder();
-						linesbuilder[r].append(time_col[r]);
 					}
 
-					for (String sim_key : sim_key_array) {
-						String[] ent = tt_map_by_sim.get(sim_key);
+					sim_key_array.sort(new Comparator<String>() {
+						@Override
+						public int compare(String o1, String o2) {
+							String[] s1 = o1.split(":");
+							String[] s2 = o2.split(":");
+							int res = 0;
+
+							for (int p = 0; p < Math.min(s1.length, s2.length) && res == 0; p++) {
+								switch (p) {
+								case 2:
+									res = Integer.compare(Integer.parseInt(s1[p]), Integer.parseInt(s2[p]));
+									break;
+								default:
+									res = s1[p].compareTo(s2[p]);
+								}
+							}
+
+							return res;
+						}
+					});
+
+					for (Entry<String, HashMap<String, String[]>> tt_map_by_col : timetrendMap.entrySet()) {
+						String col_name = tt_map_by_col.getKey();
+						HashMap<String, String[]> tt_map_by_sim = tt_map_by_col.getValue();
+
+						StringBuilder[] linesbuilder = new StringBuilder[time_col.length];
 						for (int r = 0; r < linesbuilder.length; r++) {
-							linesbuilder[r].append(',');
-							if (r < ent.length) {
-								linesbuilder[r].append(ent[r]);
-							} else {
-								linesbuilder[r].append("NaN");
-							}
-
+							linesbuilder[r] = new StringBuilder();
+							linesbuilder[r].append(time_col[r]);
 						}
+
+						for (String sim_key : sim_key_array) {
+							String[] ent = tt_map_by_sim.get(sim_key);
+							for (int r = 0; r < linesbuilder.length; r++) {
+								linesbuilder[r].append(',');
+								if (r < ent.length) {
+									linesbuilder[r].append(ent[r]);
+								} else {
+									linesbuilder[r].append("NaN");
+								}
+
+							}
+						}
+
+						File basedir = basedir_sim;
+
+						if (map_timetrend_dir.containsKey(tt_name)) {
+							basedir = map_timetrend_dir.get(tt_name);
+							basedir.mkdirs();
+						}
+
+						File f_timetrend = new File(basedir, String.format(tt_name, col_name));
+						PrintWriter p_f_timetrend = new PrintWriter(f_timetrend);
+
+						p_f_timetrend.print(col_name);
+						for (String sim_key : sim_key_array) {
+							p_f_timetrend.print(',');
+							p_f_timetrend.print(sim_key);
+						}
+
+						p_f_timetrend.println();
+
+						for (int r = 0; r < linesbuilder.length; r++) {
+							p_f_timetrend.println(linesbuilder[r].toString());
+						}
+
+						p_f_timetrend.close();
+
+						if (flag_printProgress) {
+							System.out.printf("Time trend for %s generated at %s\n", col_name,
+									f_timetrend.getAbsolutePath());
+						}
+
 					}
-
-					File basedir = basedir_sim;
-
-					if (map_timetrend_dir.containsKey(tt_name)) {
-						basedir = map_timetrend_dir.get(tt_name);
-						basedir.mkdirs();
-					}
-
-					File f_timetrend = new File(basedir, String.format(tt_name, col_name));
-					PrintWriter p_f_timetrend = new PrintWriter(f_timetrend);
-
-					p_f_timetrend.print(col_name);
-					for (String sim_key : sim_key_array) {
-						p_f_timetrend.print(',');
-						p_f_timetrend.print(sim_key);
-					}
-
-					p_f_timetrend.println();
-
-					for (int r = 0; r < linesbuilder.length; r++) {
-						p_f_timetrend.println(linesbuilder[r].toString());
-					}
-
-					p_f_timetrend.close();
 
 					if (flag_printProgress) {
-						System.out.printf("Time trend for %s generated at %s\n", col_name,
-								f_timetrend.getAbsolutePath());
+						System.out.printf("Time trend extract for %s completed.\n", timetrendEntry.getKey());
 					}
-
-				}
-
-				if (flag_printProgress) {
-					System.out.printf("Time trend extract for %s completed.\n", timetrendEntry.getKey());
 				}
 			}
 

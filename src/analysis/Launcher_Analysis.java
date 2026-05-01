@@ -27,7 +27,7 @@ public class Launcher_Analysis {
 				opt.runOptimisation();				
 
 			} else {
-				Analysis_PostSim_ExtractResults analyse = new Analysis_PostSim_ExtractResults();
+				Analysis_PostSim_ExtractTimeTrends analyse = new Analysis_PostSim_ExtractTimeTrends();
 				analyse.analyse(args);
 			}
 

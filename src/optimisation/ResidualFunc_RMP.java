@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.math3.analysis.MultivariateFunction;
 
-import analysis.Analysis_PostSim_ExtractResults;
+import analysis.Analysis_PostSim_ExtractTimeTrends;
 import sim.Abstract_Runnable_ClusterModel_Transmission;
 import sim.Runnable_MenB_Vaccine;
 import sim.Runnable_MenB_Vaccine_RMP;
@@ -217,7 +217,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
 
 			// Generate analyse result
-			Analysis_PostSim_ExtractResults analyse_optRes = new Analysis_PostSim_ExtractResults();
+			Analysis_PostSim_ExtractTimeTrends analyse_optRes = new Analysis_PostSim_ExtractTimeTrends();
 			analyse_optRes.setMap_timetrend(Map.ofEntries( //
 					Map.entry("Timetrend_Treatment_by_GrpLoc_%s.csv", Pattern.compile(".*Treatment_by_GrpLoc_.*csv"))));
 
