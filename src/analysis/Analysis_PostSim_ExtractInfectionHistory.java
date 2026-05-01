@@ -3,9 +3,12 @@ package analysis;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -28,6 +31,26 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
 	private HashMap<String, ArrayList<String[]>> map_infhist_lines;
+
+	public static final Pattern patten_zipEnt = Pattern.compile("\\[Seed_List_(\\d+)\\.csv,(\\d+)\\].*");
+	public static final Comparator<String> cmp_zipEnt = new Comparator<String>() {
+		@Override
+		public int compare(String o1, String o2) {
+			int res = o1.compareTo(o2);
+			Matcher m1 = patten_zipEnt.matcher(o1);
+			Matcher m2 = patten_zipEnt.matcher(o2);
+
+			if (m1.matches() && m2.matches()) {
+				res = Integer.valueOf(m1.group(1)).compareTo(Integer.valueOf(m2.group(1)));
+				if (res == 0) {
+					res = Integer.valueOf(m1.group(2)).compareTo(Integer.valueOf(m2.group(2)));
+				}
+
+			}
+
+			return res;
+		}
+	};
 
 	public Analysis_PostSim_ExtractInfectionHistory(String[] args) {
 		basedir = new File(args[0]);
@@ -240,6 +263,41 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", ent.getKey());
 			}
 		}
+	}
+
+	public static void generateInfectionHistCSV(HashMap<String, double[]> resultmap, int[] sample_time, File tarFile)
+			throws FileNotFoundException {
+		String[] resmap_key = resultmap.keySet().toArray(new String[0]);
+		Arrays.sort(resmap_key, cmp_zipEnt);
+
+		StringBuilder header = new StringBuilder();
+		StringBuilder[] lines = new StringBuilder[sample_time.length];
+
+		header.append("Time");
+		for (int i = 0; i < lines.length; i++) {
+			lines[i] = new StringBuilder();
+			lines[i].append(sample_time[i]);
+		}
+		for (String zName : resmap_key) {
+			Matcher m = patten_zipEnt.matcher(zName);
+			m.matches();
+			header.append(',');
+			header.append(String.format("Seed_List_%s_%s", m.group(1), m.group(2)));
+			double[] ent = resultmap.get(zName);
+			for (int i = 0; i < ent.length; i++) {
+				lines[i].append(',');
+				lines[i].append(ent[i]);
+			}
+
+		}
+
+		PrintWriter pWri = new PrintWriter(tarFile);
+		pWri.println(header);
+		for (StringBuilder line : lines) {
+			pWri.println(line.toString());
+		}
+
+		pWri.close();
 	}
 
 }
