@@ -59,9 +59,10 @@ public class Analysis_PostSim_ExtractTimeTrends {
 		File file_regions_mapping = new File(args[1]);
 		File file_grp_size = new File(args[2]);
 
-		boolean flag_check_completeness = true;
-		boolean flag_extract_timetrend = true;
-		boolean flag_region_extract = true;
+		boolean flag_check_completeness = true;  // 1
+		boolean flag_extract_timetrend = true;   // 2
+		boolean flag_region_extract = true;      // 4
+		boolean flag_infection_hist_pid = true;  // 8
 
 		boolean flag_printProgress = false;
 
@@ -71,6 +72,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				flag_check_completeness = ((1 << 0 & flag) != 0);
 				flag_extract_timetrend = ((1 << 1 & flag) != 0);
 				flag_region_extract = ((1 << 2 & flag) != 0);
+				flag_infection_hist_pid = ((1 << 3 & flag) != 0);
 			}
 			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
 				String[] ent = args[i].split("=");
@@ -579,6 +581,32 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				}
 			}
+		}		
+		if(flag_infection_hist_pid) {
+			
+			
+			// Infection history for PID
+			Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
+					args);
+
+			// PID
+			int[] incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female
+			int[] sample_time = new int[] { 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
+
+			int max_exposure = 120; // Assume won't develop PID after 4 months
+			double[] event_prob_by_inf_count = new double[] { 0.14, 0.17 };
+			int[] inf_count_range = new int[] { 0, 1 };
+
+			HashMap<String, double[]> resmap = analyseInfHist.analyse(incl_start_grps, sample_time, max_exposure,
+					event_prob_by_inf_count, inf_count_range);
+			
+			if (!resmap.isEmpty()) {
+				File baseDir = new File(args[0]);					
+				File resFile = new File(baseDir, "Infection_Hist_PID.csv");	
+				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);										
+			}
+
+			
 		}
 	}
 

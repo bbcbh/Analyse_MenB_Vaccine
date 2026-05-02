@@ -1,8 +1,6 @@
 package analysis;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 
 import optimisation.MenB_RMP_NM_Optimistion;
 import sim.Simulation_ClusterModelTransmission;
@@ -32,28 +30,6 @@ public class Launcher_Analysis {
 				// Time trend
 				Analysis_PostSim_ExtractTimeTrends analyse = new Analysis_PostSim_ExtractTimeTrends();
 				analyse.analyse(args);
-
-				// Infection history for PID
-				Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
-						args);
-
-				// PID
-				int[] incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female
-				int[] sample_time = new int[] { 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
-
-				int max_exposure = 120; // Assume won't develop PID after 4 months
-				double[] event_prob_by_inf_count = new double[] { 0.14, 0.17 };
-				int[] inf_count_range = new int[] { 0, 1 };
-
-				HashMap<String, double[]> resmap = analyseInfHist.analyse(incl_start_grps, sample_time, max_exposure,
-						event_prob_by_inf_count, inf_count_range);
-				
-				if (!resmap.isEmpty()) {
-					File baseDir = new File(args[0]);					
-					File resFile = new File(baseDir, "Infection_Hist_PID.csv");	
-					Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);										
-				}
-
 			}
 
 		}
