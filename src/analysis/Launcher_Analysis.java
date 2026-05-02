@@ -2,8 +2,6 @@ package analysis;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.HashMap;
 
 import optimisation.MenB_RMP_NM_Optimistion;
@@ -49,36 +47,11 @@ public class Launcher_Analysis {
 
 				HashMap<String, double[]> resmap = analyseInfHist.analyse(incl_start_grps, sample_time, max_exposure,
 						event_prob_by_inf_count, inf_count_range);
-
+				
 				if (!resmap.isEmpty()) {
-					File baseDir = new File(args[0]);
-					PrintWriter pWri = new PrintWriter(new File(baseDir, "PID_Event_Count.csv"));
-					String[] zipEntNames = resmap.keySet().toArray(new String[0]);
-					Arrays.sort(zipEntNames);
-
-					pWri.print("Time");
-					for (int t = 0; t < sample_time.length; t++) {
-						pWri.print(',');
-						pWri.print(sample_time[t]);
-					}
-					pWri.println();
-
-					for (String zName : zipEntNames) {
-						pWri.print(zName.replace(',', '_'));
-						try {
-							double[] ent = resmap.get(zName);
-							for (int t = 0; t < ent.length; t++) {
-								pWri.print(',');
-								pWri.print(ent[t]);
-							}
-						} catch (NullPointerException ex) {
-							ex.printStackTrace(System.err);
-						}
-						pWri.println();
-					}
-
-					pWri.close();
-
+					File baseDir = new File(args[0]);					
+					File resFile = new File(baseDir, "Infection_Hist_PID.csv");	
+					Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);										
 				}
 
 			}
