@@ -591,7 +591,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 			// PID
 			int[] incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female
-			int[] sample_time = new int[] { 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
+			int[] sample_time = new int[] { 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
 
 			int max_exposure = 120; // Assume won't develop PID after 4 months
 			double[] event_prob_by_inf_count = new double[] { 0.14, 0.17 };
