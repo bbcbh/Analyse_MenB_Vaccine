@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +24,7 @@ import sim.Runnable_MenB_Vaccine;
 import sim.Runnable_MenB_Vaccine_RMP;
 import sim.Simulation_ClusterModelTransmission;
 import sim.Simulation_MenB_Vaccine;
+import util.Util_7Z_CSV_Entry_Extract_Callable;
 
 public class ResidualFunc_RMP implements MultivariateFunction {
 
@@ -213,7 +215,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			};
 			sim.setPrintProgress(printProgess);
-			
+
 			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
 
 			// Generate analyse result
@@ -228,9 +230,8 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			analyse_optRes.setPattern_sim(Pattern.compile(seedDir.getName()));
 
-			
 			analyse_optRes.analyse(args_analysis);
-			
+
 			// Calculate objective function based on analysis
 			File outTxt = new File(working_dir, fileformat_output_txt);
 			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
@@ -242,8 +243,75 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			treatment_fit = 0;
 			for (int f = 0; f < opt_outcome_csv.length; f++) {
-				String[] lines = util.Util_7Z_CSV_Entry_Extract_Callable
-						.extracted_lines_from_text(new File(working_dir, opt_outcome_csv[f]));
+				String[] lines;
+				File target_file = new File(working_dir, opt_outcome_csv[f]);
+
+				if (target_file.exists()) {
+					lines = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(target_file);
+				} else {
+					// Based on regular expression
+					Pattern pattern_csv = Pattern.compile(target_file.getName());
+					StringBuilder header = new StringBuilder();
+					header.append(target_file.getName());
+
+					File[] src_files = target_file.getParentFile().listFiles(new FileFilter() {
+						@Override
+						public boolean accept(File pathname) {
+							return pattern_csv.matcher(pathname.getName()).matches();
+						}
+					});
+
+					ArrayList<double[]> val = new ArrayList<>();
+					double[] valEnt;
+
+					for (File src_file : src_files) {
+						String[] src_lines = Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(src_file);
+						String[] src_header = src_lines[0].split(",");
+
+						if (val.size() == 0) {
+							for (int c = 1; c < src_header.length; c++) {
+								header.append(',');
+								header.append(src_header[c]);
+							}
+							for (int r = 1; r < src_lines.length; r++) {
+								valEnt = new double[src_header.length];
+								Arrays.fill(valEnt, Double.NaN);
+								val.add(valEnt);
+							}
+						}
+
+						for (int r = 1; r < src_lines.length; r++) {
+							valEnt = val.get(r - 1);
+							String[] src_ent = src_lines[r].split(",");
+							if (Double.isNaN(valEnt[0])) {
+								Arrays.fill(valEnt, 0);
+								valEnt[0] = Integer.parseInt(src_ent[0]);
+							}
+							for (int c = 1; c < src_ent.length; c++) {
+								valEnt[c] += Double.parseDouble(src_ent[c]);
+							}
+
+						}
+
+					}
+
+					lines = new String[val.size() + 1];
+					lines[0] = header.toString();
+					for (int i = 1; i < lines.length; i++) {
+						StringBuilder ent = new StringBuilder();
+						valEnt = val.get(i - 1);
+						if (!Double.isNaN(valEnt[0])) {
+							ent.append((int) valEnt[0]);
+							for (int c = 1; c < valEnt.length; c++) {
+								ent.append(',');
+								ent.append(valEnt[c]);
+							}
+						}
+
+						lines[i] = ent.toString();
+					}
+
+				}
 				int num_row_entries = 0;
 				double residue_sum_by_outcome = 0;
 
@@ -298,19 +366,19 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 					}
 
 				}
-				String outputFormat = "#%d: SUM_SQ_DIFF = %f from %d entries\n"; 
+				String outputFormat = "#%d: SUM_SQ_DIFF = %f from %d entries\n";
 				double outputPrint = residue_sum_by_outcome;
-				
+
 				if (!Double.isNaN(opt_setting[f][OPT_SETTING_TARGET])) {
-					residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries; 
+					residue_sum_by_outcome = residue_sum_by_outcome / num_row_entries;
 					outputFormat = "#%d: Average treatment = %f from %d entries\n"; // Average of included rows
 					outputPrint = treatment_rate_total / num_row_entries;
 				}
 
-				wriOutTxt.printf(outputFormat, f,outputPrint, num_row_entries);
+				wriOutTxt.printf(outputFormat, f, outputPrint, num_row_entries);
 
 				if (printProgess) {
-					System.out.printf(outputFormat, f,outputPrint, num_row_entries);
+					System.out.printf(outputFormat, f, outputPrint, num_row_entries);
 				}
 
 				treatment_fit += residue_sum_by_outcome;
