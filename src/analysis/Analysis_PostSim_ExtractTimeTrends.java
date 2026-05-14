@@ -14,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import sim.Simulation_ClusterModelTransmission;
+import util.Util_7Z_CSV_Entry_Extract_Callable;
 
 public class Analysis_PostSim_ExtractTimeTrends {
 
@@ -37,17 +38,37 @@ public class Analysis_PostSim_ExtractTimeTrends {
 			Map.entry("Timetrend_Infectious_by_GrpRegion_%s.csv", Pattern.compile("Infectious_by_GrpRegion_.*csv\\.7z")) //
 	);
 
-	String[][] region_extract_array = new String[][] { new String[] { //
-			"Timetrend_Treatment_by_GrpLoc_%s.csv", //
-			"Timetrend_Infectious_by_GrpLoc_%s.csv", //
+	String[][] grp_extract_array = new String[][] { //
+			new String[] { //
+					"Timetrend_Treatment_by_GrpLoc_%s.csv", //
+					"Timetrend_Treatment_by_GrpLoc_%s.csv", //
+			}, //
+			new String[] { //
+					"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
+					"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
+			}, //
+			new String[] { //
+					"[56789]", // Indigenous female
+					"1[56789]", // Non-Indigenous female
+			}//
 
-			}, new String[] { //
+	};
+
+	String[][] region_extract_array = new String[][] { //
+			new String[] { //
+					"Timetrend_Treatment_by_GrpLoc_%s.csv", //
+					"Timetrend_Infectious_by_GrpLoc_%s.csv", //
+
+			}, //
+			new String[] { //
 					"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
 					"Timetrend_Infectious_by_GrpLoc_Grp_%d_Loc_%d.csv", //
-			}, new String[] { //
+			}, //
+			new String[] { //
 					"Timetrend_Treatment_%s_at_%s.csv", //
 					"Timetrend_Infectious_%s_at_%s.csv", //
-			} };
+			} //
+	};
 
 	public void setMap_timetrend(Map<String, Pattern> map_timetrend) {
 		this.map_timetrend = map_timetrend;
@@ -59,10 +80,10 @@ public class Analysis_PostSim_ExtractTimeTrends {
 		File file_regions_mapping = new File(args[1]);
 		File file_grp_size = new File(args[2]);
 
-		boolean flag_check_completeness = true;  // 1
-		boolean flag_extract_timetrend = true;   // 2
-		boolean flag_region_extract = true;      // 4
-		boolean flag_infection_hist_pid = true;  // 8
+		boolean flag_check_completeness = true; // 1
+		boolean flag_extract_timetrend = true; // 2
+		boolean flag_grp_region_extract = true; // 4
+		boolean flag_infection_hist_pid = true; // 8
 
 		boolean flag_printProgress = false;
 
@@ -71,7 +92,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				int flag = Integer.parseInt(args[i].substring("-flag=".length()));
 				flag_check_completeness = ((1 << 0 & flag) != 0);
 				flag_extract_timetrend = ((1 << 1 & flag) != 0);
-				flag_region_extract = ((1 << 2 & flag) != 0);
+				flag_grp_region_extract = ((1 << 2 & flag) != 0);
 				flag_infection_hist_pid = ((1 << 3 & flag) != 0);
 			}
 			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
@@ -90,13 +111,16 @@ public class Analysis_PostSim_ExtractTimeTrends {
 						new File(basedir_sim, "Timetrend_Infectious_GrpReg")) //
 		);
 
-		// Regional mapping
-
 		int model_pop_size = 1000000;
 
-		String[] datasel_by_regions = region_extract_array[0];
-		String[] strformat_datasel_csv = region_extract_array[1];
-		String[] datasel_output_fname = region_extract_array[2];
+		String[] datasel_by_grp_key = grp_extract_array[0];
+		String[] datasel_by_grp_csv_strformat = grp_extract_array[1];
+		String[] datasel_by_grp_output_regEx = grp_extract_array[2];
+
+		// Regional mapping
+		String[] datasel_by_regions_key = region_extract_array[0];
+		String[] datasel_by_regions_csv_strformat = region_extract_array[1];
+		String[] datasel_by_regions_output_fname = region_extract_array[2];
 
 		Map<String, int[]> map_timetrend_grpIncl = Map.ofEntries( //
 				Map.entry("Indigenous", new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }) // Indigenous
@@ -253,9 +277,9 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					}
 				}
 
-				if (timetrendMap.isEmpty()) {					
-					System.out.printf("Extract of time trend for \"%s\" skipped.\n", tt_name);					
-				}else {
+				if (timetrendMap.isEmpty()) {
+					System.out.printf("Extract of time trend for \"%s\" skipped.\n", tt_name);
+				} else {
 					// Printing of outputs
 					String[] time_col = new String[0];
 					ArrayList<String> sim_key_array = new ArrayList<>();
@@ -353,13 +377,94 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 		}
 
-		if (flag_region_extract) {
+		if (flag_grp_region_extract) {
 
-			for (int resPt = 0; resPt < strformat_datasel_csv.length; resPt++) {
+			for (int resPt = 0; resPt < datasel_by_grp_csv_strformat.length; resPt++) {
+				File data_dir = basedir_sim;
+				if (map_timetrend_dir.containsKey(datasel_by_grp_key[resPt])) {
+					data_dir = map_timetrend_dir.get(datasel_by_grp_key[resPt]);
+				}
+				String csv_format_by_grp = datasel_by_grp_csv_strformat[resPt]
+						.replaceFirst("%d", datasel_by_grp_output_regEx[resPt]).replaceAll("%d", "\\\\d+");
+				Pattern pattern_csv = Pattern.compile(csv_format_by_grp);
+				String fname_output = datasel_by_grp_csv_strformat[resPt]
+						.replaceFirst("%d", datasel_by_grp_output_regEx[resPt]).replaceAll("%d", "ALL");
+				
+				
+				StringBuilder header = new StringBuilder();
+				header.append(fname_output);
+				
+				File[] src_files = data_dir.listFiles(new FileFilter() {
+					@Override
+					public boolean accept(File pathname) {
+						return pattern_csv.matcher(pathname.getName()).matches();
+					}
+				});
+				
+				ArrayList<double[]> val = new ArrayList<>();
+				double[] valEnt;
+
+				for (File src_file : src_files) {
+					String[] src_lines = Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(src_file);
+					String[] src_header = src_lines[0].split(",");
+
+					if (val.size() == 0) {
+						for (int c = 1; c < src_header.length; c++) {
+							header.append(',');
+							header.append(src_header[c]);
+						}
+						for (int r = 1; r < src_lines.length; r++) {
+							valEnt = new double[src_header.length];
+							Arrays.fill(valEnt, Double.NaN);
+							val.add(valEnt);
+						}
+					}
+
+					for (int r = 1; r < src_lines.length; r++) {
+						valEnt = val.get(r - 1);
+						String[] src_ent = src_lines[r].split(",");
+						if (Double.isNaN(valEnt[0])) {
+							Arrays.fill(valEnt, 0);
+							valEnt[0] = Integer.parseInt(src_ent[0]);
+						}
+						for (int c = 1; c < src_ent.length; c++) {
+							valEnt[c] += Double.parseDouble(src_ent[c]);
+						}
+
+					}
+
+				}
+
+				// Print output
+				String[] lines = new String[val.size() + 1];
+				lines[0] = header.toString();
+				for (int i = 1; i < lines.length; i++) {
+					StringBuilder ent = new StringBuilder();
+					valEnt = val.get(i - 1);
+					if (!Double.isNaN(valEnt[0])) {
+						ent.append((int) valEnt[0]);
+						for (int c = 1; c < valEnt.length; c++) {
+							ent.append(',');
+							ent.append(valEnt[c]);
+						}
+					}
+
+					lines[i] = ent.toString();
+				}
+				
+				File output_file = new File(data_dir, fname_output);
+				PrintWriter pWri_output = new PrintWriter(output_file);
+				for(String line : lines) {
+					pWri_output.println(line);
+				}
+				pWri_output.close();								
+			}			
+
+			for (int resPt = 0; resPt < datasel_by_regions_csv_strformat.length; resPt++) {
 
 				File data_dir = basedir_sim;
-				if (map_timetrend_dir.containsKey(datasel_by_regions[resPt])) {
-					data_dir = map_timetrend_dir.get(datasel_by_regions[resPt]);
+				if (map_timetrend_dir.containsKey(datasel_by_regions_key[resPt])) {
+					data_dir = map_timetrend_dir.get(datasel_by_regions_key[resPt]);
 				}
 
 				// K = region ID, V = popSize by grp
@@ -465,7 +570,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				String[] common_sim_header = null;
 
-				Pattern pattern_datasel_csv = Pattern.compile(strformat_datasel_csv[resPt].replace("%d", "(\\d+)"));
+				Pattern pattern_datasel_csv = Pattern
+						.compile(datasel_by_regions_csv_strformat[resPt].replace("%d", "(\\d+)"));
 
 				for (Entry<String, int[]> ent : map_timetrend_grpIncl.entrySet()) {
 					int[] grps = ent.getValue();
@@ -548,7 +654,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 						double[][] val = val_all[ra - 2];
 
 						File output_file = new File(data_dir,
-								String.format(datasel_output_fname[resPt], ent.getKey(), region_type));
+								String.format(datasel_by_regions_output_fname[resPt], ent.getKey(), region_type));
 						PrintWriter pWri_out = new PrintWriter(output_file);
 
 						// Header
@@ -581,10 +687,9 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				}
 			}
-		}		
-		if(flag_infection_hist_pid) {
-			
-			
+		}
+		if (flag_infection_hist_pid) {
+
 			// Infection history for PID
 			Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
 					args);
@@ -599,14 +704,13 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 			HashMap<String, double[]> resmap = analyseInfHist.analyse(incl_start_grps, sample_time, max_exposure,
 					event_prob_by_inf_count, inf_count_range);
-			
+
 			if (!resmap.isEmpty()) {
-				File baseDir = new File(args[0]);					
-				File resFile = new File(baseDir, "Infection_Hist_PID.csv");	
-				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);										
+				File baseDir = new File(args[0]);
+				File resFile = new File(baseDir, "Infection_Hist_PID.csv");
+				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);
 			}
 
-			
 		}
 	}
 
@@ -616,6 +720,10 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 	public void setPattern_sim(Pattern pattern_sim) {
 		this.pattern_sim = pattern_sim;
+	}
+
+	public void setGrp_extract_array(String[][] grp_extract_array) {
+		this.grp_extract_array = grp_extract_array;
 	}
 
 }
