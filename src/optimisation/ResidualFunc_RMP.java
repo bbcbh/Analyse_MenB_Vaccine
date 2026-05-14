@@ -35,7 +35,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	final String[] default_seed_file_header;
 	final String[] default_seed_file_val;
 	final String[] param_to_opt;
-	final HashMap<String, Integer> opt_param_index_lookup;
+//	final HashMap<String, Integer> opt_param_index_lookup;
 	final HashMap<String, Integer> seed_list_param_index_lookup;
 
 	final Map<String, String> param_cross_ref;
@@ -98,10 +98,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			seed_list_param_index_lookup.put(default_seed_file_header[i], i);
 		}
 		// Use with double[] point
-		opt_param_index_lookup = new HashMap<>();
-		for (int i = 0; i < param_to_opt.length; i++) {
-			opt_param_index_lookup.put(param_to_opt[i], i);
-		}
+//		opt_param_index_lookup = new HashMap<>();
+//		for (int i = 0; i < param_to_opt.length; i++) {
+//			opt_param_index_lookup.put(param_to_opt[i], i);
+//		}
 
 		// Write simplex values to cache
 		eval_point_cache = new HashMap<>();
@@ -145,7 +145,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			int seed_pt = seed_list_param_index_lookup.get(opt_param);
 			double val = point[i];
 			if (param_cross_ref.containsKey(opt_param)) {
-				val *= point[opt_param_index_lookup.get(param_cross_ref.get(opt_param))];
+				val *= Double.valueOf(seed_val_str[seed_list_param_index_lookup.get(param_cross_ref.get(opt_param))]);
 			}
 			seed_val_str[seed_pt] = Double.toString(val);
 		}
