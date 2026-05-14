@@ -35,7 +35,7 @@ public class MenB_RMP_NM_Optimistion extends Abstract_Optimisation {
 		String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed_dir, seed_row - 1),
 				path_region_path, path_grp_size };
 		ResidualFunc_RMP func = new ResidualFunc_RMP(path, new String[][] { seed_file_header, seed_file_def_val },
-				param_to_opt, cross_ref_sample_range, opt_outcome_csv, opt_setting, opt_time_range,
+				param_to_opt, cross_ref_map, opt_outcome_csv, opt_setting, opt_time_range,
 				objFunc_printProgress);
 		return func;
 	}
