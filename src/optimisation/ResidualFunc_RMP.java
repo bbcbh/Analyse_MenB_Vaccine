@@ -62,10 +62,6 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 	public static final int OPT_SETTING_WEIGHT = 2;
 	public static final int OPT_SETTING_WEIGHT_ADJ_PER_STEP = 3;
 
-	public static final String fileformat_opt_outcomes = "OptProgress_ParamList_%s.csv";
-	public static final String fileformat_point_cache = "OptProgress_PointCache_%s.csv";
-	public static final String fileformat_output_txt = "Output.txt";
-
 	protected final boolean printProgess;
 
 	private HashMap<String, Double> eval_point_cache;
@@ -110,7 +106,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		// Write simplex values to cache
 		eval_point_cache = new HashMap<>();
 		File simplexCache = new File(def_filepath[FILEPATH_SIM_DIR],
-				String.format(fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
+				String.format(Abstract_Optimisation.fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
 		if (simplexCache.exists()) {
 			try {
 				String[] ent = util.Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(simplexCache);
@@ -233,7 +229,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			analyse_optRes.analyse(args_analysis);
 
 			// Calculate objective function based on analysis
-			File outTxt = new File(working_dir, fileformat_output_txt);
+			File outTxt = new File(working_dir, Abstract_Optimisation.fileformat_output_txt);
 			PrintWriter wriOutTxt = new PrintWriter(new FileWriter(outTxt, true));
 
 			wriOutTxt.printf("P=%s\n", Arrays.toString(seed_val_str));
@@ -391,7 +387,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 
 			// Generate outcome file
 			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
+					String.format(Abstract_Optimisation.fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
 
 			PrintWriter pWri_outcome;
 			if (!file_outcome.exists()) {
@@ -408,7 +404,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			pWri_outcome.close();
 
 			File file_pointCache = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
+					String.format(Abstract_Optimisation.fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
 			PrintWriter pWri_pointCache = new PrintWriter(new FileWriter(file_pointCache, true));
 			pWri_pointCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
 			pWri_pointCache.close();
