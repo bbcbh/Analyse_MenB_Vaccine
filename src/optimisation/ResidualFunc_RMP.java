@@ -24,6 +24,7 @@ import sim.Runnable_MenB_Vaccine;
 import sim.Runnable_MenB_Vaccine_RMP;
 import sim.Simulation_ClusterModelTransmission;
 import sim.Simulation_MenB_Vaccine;
+import util.StaticMethods;
 import util.Util_7Z_CSV_Entry_Extract_Callable;
 
 public class ResidualFunc_RMP implements MultivariateFunction {
@@ -184,9 +185,9 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			seedDir.mkdirs();
 			PrintWriter pWri_seed = new PrintWriter(
 					new File(seedDir, String.format("%s.csv", def_filepath[FILEPATH_SEED_DIR])));
-			writeEntries(pWri_seed, default_seed_file_header);
+			StaticMethods.writeEntries(pWri_seed, default_seed_file_header);
 			pWri_seed.println();
-			writeEntries(pWri_seed, seed_val_str);
+			StaticMethods.writeEntries(pWri_seed, seed_val_str);
 			pWri_seed.println();
 			pWri_seed.close();
 
@@ -386,28 +387,33 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			wriOutTxt.close();
 
 			// Generate outcome file
-			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(Abstract_Optimisation.fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
-
-			PrintWriter pWri_outcome;
-			if (!file_outcome.exists()) {
-				pWri_outcome = new PrintWriter(file_outcome);
-				writeEntries(pWri_outcome, default_seed_file_header);
-				pWri_outcome.println(",,RES");
-			} else {
-				pWri_outcome = new PrintWriter(new FileWriter(file_outcome, true));
-			}
-			writeEntries(pWri_outcome, seed_val_str);
-			pWri_outcome.print(",,");
-			pWri_outcome.print(treatment_fit);
-			pWri_outcome.println();
-			pWri_outcome.close();
-
-			File file_pointCache = new File(def_filepath[FILEPATH_SIM_DIR],
-					String.format(Abstract_Optimisation.fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
-			PrintWriter pWri_pointCache = new PrintWriter(new FileWriter(file_pointCache, true));
-			pWri_pointCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
-			pWri_pointCache.close();
+			
+			Abstract_Optimisation.generateResidueOutcomeFiles(new File(def_filepath[FILEPATH_SIM_DIR]), def_filepath[FILEPATH_SEED_DIR], 					
+					default_seed_file_header, seed_val_str, point, treatment_fit);	
+			
+			
+//			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
+//					String.format(Abstract_Optimisation.fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
+//
+//			PrintWriter pWri_outcome;
+//			if (!file_outcome.exists()) {
+//				pWri_outcome = new PrintWriter(file_outcome);
+//				writeEntries(pWri_outcome, default_seed_file_header);
+//				pWri_outcome.println(",,RES");
+//			} else {
+//				pWri_outcome = new PrintWriter(new FileWriter(file_outcome, true));
+//			}
+//			writeEntries(pWri_outcome, seed_val_str);
+//			pWri_outcome.print(",,");
+//			pWri_outcome.print(treatment_fit);
+//			pWri_outcome.println();
+//			pWri_outcome.close();
+//
+//			File file_pointCache = new File(def_filepath[FILEPATH_SIM_DIR],
+//					String.format(Abstract_Optimisation.fileformat_point_cache, def_filepath[FILEPATH_SEED_DIR]));
+//			PrintWriter pWri_pointCache = new PrintWriter(new FileWriter(file_pointCache, true));
+//			pWri_pointCache.printf("%s:%f\n", Arrays.toString(point), treatment_fit);
+//			pWri_pointCache.close();
 
 			if (treatment_fit < minResidue) {
 				minResidue = treatment_fit;
@@ -429,15 +435,6 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		}
 		return treatment_fit;
 	}
-
-	private void writeEntries(PrintWriter pWri_seed, String[] arr) {
-		for (int i = 0; i < arr.length; i++) {
-			if (i != 0) {
-				pWri_seed.append(',');
-			}
-			pWri_seed.append(arr[i]);
-		}
-
-	}
+	
 
 }

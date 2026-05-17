@@ -9,7 +9,6 @@ import org.apache.commons.math3.analysis.MultivariateFunction;
 
 public class MenB_RMP_NM_Optimistion extends Abstract_Optimisation {
 
-	private final String[] opt_outcome_csv;
 	private final String path_region_path;
 	private final String path_grp_size;
 
@@ -27,12 +26,12 @@ public class MenB_RMP_NM_Optimistion extends Abstract_Optimisation {
 
 		path_region_path = prop.getProperty("PROP_PATH_REGION_MAPPING");
 		path_grp_size = prop.getProperty("PROP_PATH_GRP_SIZE");
-		opt_outcome_csv = prop.getProperty("PROP_OPT_OUTCOME_CSV").replaceAll("\\s", "").split(",");
+		
 
 	}
 
 	protected MultivariateFunction generateObjectiveFunc(int seed_row, String[] seed_file_def_val) {
-		String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed_dir, seed_row - 1),
+		String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed, seed_row - 1),
 				path_region_path, path_grp_size };
 		ResidualFunc_RMP func = new ResidualFunc_RMP(path, new String[][] { seed_file_header, seed_file_def_val },
 				param_to_opt, cross_ref_map, opt_outcome_csv, opt_setting, opt_time_range,
