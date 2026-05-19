@@ -213,7 +213,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			};
 			sim.setPrintProgress(printProgess);
 
-			//Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
+			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
 
 			// Generate analyse result
 			Analysis_PostSim_ExtractTimeTrends analyse_optRes = new Analysis_PostSim_ExtractTimeTrends();
