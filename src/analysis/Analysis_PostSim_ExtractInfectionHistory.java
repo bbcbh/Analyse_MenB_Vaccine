@@ -17,7 +17,9 @@ import java.util.regex.Pattern;
 
 import sim.Runnable_MetaPopulation_MultiTransmission;
 import sim.SimulationInterface;
+import util.StaticMethods;
 import util.Util_7Z_CSV_Entry_Extract_Callable;
+
 
 public class Analysis_PostSim_ExtractInfectionHistory {
 
@@ -239,8 +241,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 					File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
 					demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
-					String[] pop_stat_line = Util_7Z_CSV_Entry_Extract_Callable
-							.extracted_lines_from_text(new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
+					String[] pop_stat_line = StaticMethods.extracted_lines_from_text(new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
 					// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
 					for (int i = 1; i < pop_stat_line.length; i++) {
 						String[] lineEnt = pop_stat_line[i].split(",");

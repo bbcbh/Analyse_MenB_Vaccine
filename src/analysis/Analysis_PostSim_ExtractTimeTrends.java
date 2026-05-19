@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import sim.Simulation_ClusterModelTransmission;
-import util.Util_7Z_CSV_Entry_Extract_Callable;
+import util.StaticMethods;
 
 public class Analysis_PostSim_ExtractTimeTrends {
 
@@ -86,6 +86,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 		boolean flag_infection_hist_pid = true; // 8
 
 		boolean flag_printProgress = false;
+		boolean keepGrpRegionCSVs = false;
 
 		for (int i = 3; i < args.length; i++) {
 			if (args[i].startsWith("-flag=")) {
@@ -95,6 +96,10 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				flag_grp_region_extract = ((1 << 2 & flag) != 0);
 				flag_infection_hist_pid = ((1 << 3 & flag) != 0);
 			}
+			if (args[i].startsWith("-keepGrpRegionCSV=")) {
+				keepGrpRegionCSVs = Boolean.valueOf(args[i].substring("-flag=".length()));
+			}
+
 			if (args[i].startsWith(Simulation_ClusterModelTransmission.LAUNCH_ARGS_PRINT_PROGRESS)) {
 				String[] ent = args[i].split("=");
 				flag_printProgress = Boolean.parseBoolean(ent[ent.length - 1]);
@@ -238,17 +243,19 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 									String[] col_name = lineEnt.getValue().remove(0);
 									for (int c = 0; c < col_name.length; c++) {
-										HashMap<String, String[]> timetrendMapByCol = timetrendMap.get(col_name[c]);
-										if (timetrendMapByCol == null) {
-											timetrendMapByCol = new HashMap<>();
-											timetrendMap.put(col_name[c], timetrendMapByCol);
-										}
-										if (lineEnt.getValue().size() > 0) {
-											String[] ent = new String[lineEnt.getValue().size()];
-											for (int i = 0; i < lineEnt.getValue().size(); i++) {
-												ent[i] = lineEnt.getValue().get(i)[c];
+										if (!col_name[c].endsWith("_null")) { // Skip null location
+											HashMap<String, String[]> timetrendMapByCol = timetrendMap.get(col_name[c]);
+											if (timetrendMapByCol == null) {
+												timetrendMapByCol = new HashMap<>();
+												timetrendMap.put(col_name[c], timetrendMapByCol);
 											}
-											timetrendMapByCol.put(map_key, ent);
+											if (lineEnt.getValue().size() > 0) {
+												String[] ent = new String[lineEnt.getValue().size()];
+												for (int i = 0; i < lineEnt.getValue().size(); i++) {
+													ent[i] = lineEnt.getValue().get(i)[c];
+												}
+												timetrendMapByCol.put(map_key, ent);
+											}
 										}
 									}
 
@@ -389,23 +396,22 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				Pattern pattern_csv = Pattern.compile(csv_format_by_grp);
 				String fname_output = datasel_by_grp_csv_strformat[resPt]
 						.replaceFirst("%d", datasel_by_grp_output_regEx[resPt]).replaceAll("%d", "ALL");
-				
-				
+
 				StringBuilder header = new StringBuilder();
 				header.append(fname_output);
-				
+
 				File[] src_files = data_dir.listFiles(new FileFilter() {
 					@Override
 					public boolean accept(File pathname) {
 						return pattern_csv.matcher(pathname.getName()).matches();
 					}
 				});
-				
+
 				ArrayList<double[]> val = new ArrayList<>();
 				double[] valEnt;
 
 				for (File src_file : src_files) {
-					String[] src_lines = Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(src_file);
+					String[] src_lines = StaticMethods.extracted_lines_from_text(src_file);
 					String[] src_header = src_lines[0].split(",");
 
 					if (val.size() == 0) {
@@ -451,14 +457,14 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 					lines[i] = ent.toString();
 				}
-				
+
 				File output_file = new File(data_dir, fname_output);
 				PrintWriter pWri_output = new PrintWriter(output_file);
-				for(String line : lines) {
+				for (String line : lines) {
 					pWri_output.println(line);
 				}
-				pWri_output.close();								
-			}			
+				pWri_output.close();
+			}
 
 			for (int resPt = 0; resPt < datasel_by_regions_csv_strformat.length; resPt++) {
 
@@ -684,6 +690,64 @@ public class Analysis_PostSim_ExtractTimeTrends {
 									output_file.getAbsolutePath());
 						}
 					}
+
+				}
+
+				if (!keepGrpRegionCSVs) {
+					File[] csvList = data_dir.listFiles(new FileFilter() {
+						@Override
+						public boolean accept(File pathname) {
+							return pattern_datasel_csv.matcher(pathname.getName()).matches();
+						}
+					});
+
+					File tar_file = new File(data_dir,
+							String.format("%s.7z", String.format(datasel_by_regions_key[resPt], "ALL")));
+
+					try {
+						StaticMethods.zipFile(csvList, tar_file, true);
+					} catch (IOException ex) {
+						ex.printStackTrace(System.err);
+
+					}
+
+//					Arrays.sort(csvList, new Comparator<File>() {
+//						@Override
+//						public int compare(File o1, File o2) {
+//							Matcher m1 = pattern_datasel_csv.matcher(o1.getName());
+//							Matcher m2 = pattern_datasel_csv.matcher(o2.getName());
+//							int res = 0;
+//							if (m1.matches() && m2.matches()) {
+//								int g = 1;
+//								while (res == 0 && g < m1.groupCount() & g < m2.groupCount()) {
+//									res = Integer.valueOf(m1.group(g)).compareTo(Integer.valueOf(m2.group(g)));
+//									g++;
+//								}
+//							}
+//							return res;
+//						}
+//					});
+//
+//					HashMap<Integer, ArrayList<File>> map_by_grp = new HashMap<>();
+//					for (File f : csvList) {
+//						Matcher m = pattern_datasel_csv.matcher(f.getName());
+//						Integer grp = Integer.valueOf(m.group(1));
+//						ArrayList<File> f_list = map_by_grp.get(grp);
+//						if (f_list == null) {
+//							f_list = new ArrayList<>();
+//							map_by_grp.put(grp, f_list);
+//						}
+//						f_list.add(f);
+//					}
+//
+//					for (Entry<Integer, ArrayList<File>> ent : map_by_grp.entrySet()) {
+//						Integer grp = ent.getKey();
+//						File[] zip_files = ent.getValue().toArray(new File[0]);
+//						File tar_file = new File(data_dir, String.format("%s.7z",
+//								String.format(datasel_by_regions_key[resPt]), String.format("Grp_%d", grp)));
+//						StaticMethods.zipFile(zip_files, tar_file, true);
+//
+//					}
 
 				}
 			}

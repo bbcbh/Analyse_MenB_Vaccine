@@ -25,7 +25,7 @@ import sim.Runnable_MenB_Vaccine_RMP;
 import sim.Simulation_ClusterModelTransmission;
 import sim.Simulation_MenB_Vaccine;
 import util.StaticMethods;
-import util.Util_7Z_CSV_Entry_Extract_Callable;
+//import util.Util_7Z_CSV_Entry_Extract_Callable;
 
 public class ResidualFunc_RMP implements MultivariateFunction {
 
@@ -213,7 +213,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			};
 			sim.setPrintProgress(printProgess);
 
-			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
+			//Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
 
 			// Generate analyse result
 			Analysis_PostSim_ExtractTimeTrends analyse_optRes = new Analysis_PostSim_ExtractTimeTrends();
@@ -262,7 +262,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 					double[] valEnt;
 
 					for (File src_file : src_files) {
-						String[] src_lines = Util_7Z_CSV_Entry_Extract_Callable.extracted_lines_from_text(src_file);
+						String[] src_lines = StaticMethods.extracted_lines_from_text(src_file);
 						String[] src_header = src_lines[0].split(",");
 
 						if (val.size() == 0) {
