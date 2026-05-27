@@ -790,4 +790,141 @@ public class Analysis_PostSim_ExtractTimeTrends {
 		this.grp_extract_array = grp_extract_array;
 	}
 
+	// Index File[] corresponds to regions as specified in adj_pop_size
+	public static void extractGrpRegionTimeTrendFromZip(File zipFile, File adj_pop_size,
+			Map<File[], Pattern> output_pattern_map) throws IOException {
+
+		HashMap<String, ArrayList<String[]>> map_trend_from_zip = new HashMap<>();
+
+		Map<File, ArrayList<String>> output_builder_map = new HashMap<>();
+
+		// Read adj pop size by region
+		HashMap<Integer, HashMap<Integer, double[]>> adj_pop_size_by_region_grp = new HashMap<>();
+		HashMap<Integer, HashMap<Integer, Double>> total_adj_pop_size_by_region_grp = new HashMap<>();
+		String[] adj_pop_size_lines = StaticMethods.extracted_lines_from_text(adj_pop_size);
+
+		for (int r = 1; r < adj_pop_size_lines.length; r++) {
+			String[] ent = adj_pop_size_lines[r].split(",");
+			Integer region_id = Integer.valueOf(ent[0]);
+			Integer grp_id = Integer.valueOf(ent[1]);
+
+			double[] adj_pop_size_by_grp = new double[ent.length - 2];
+			double total_adj_pop_size = 0;
+			
+			for (int g = 2; g < ent.length; g++) {
+				adj_pop_size_by_grp[g - 2] = Double.parseDouble(ent[g]);
+				total_adj_pop_size += adj_pop_size_by_grp[g - 2];
+			}
+
+			HashMap<Integer, double[]> region_ent = adj_pop_size_by_region_grp.get(region_id);
+			if (region_ent == null) {
+				region_ent = new HashMap<>();
+				adj_pop_size_by_region_grp.put(region_id, region_ent);
+			}
+			region_ent.put(grp_id, adj_pop_size_by_grp);
+
+			HashMap<Integer, Double> total_region_ent = total_adj_pop_size_by_region_grp.get(region_id);
+			if (total_region_ent == null) {
+				total_region_ent = new HashMap<>();
+				total_adj_pop_size_by_region_grp.put(region_id, total_region_ent);
+			}
+			total_region_ent.put(grp_id, total_adj_pop_size);
+		}
+
+		// Initialise output builder map
+		for (File[] f_arr : output_pattern_map.keySet()) {
+			for (File f : f_arr) {
+				output_builder_map.put(f, new ArrayList<>());
+			}
+		}
+
+		StaticMethods.extractedLinesFrom7Zip(zipFile, map_trend_from_zip, null);
+		String[] zip_ent_names = map_trend_from_zip.keySet().toArray(new String[0]);
+
+		for (File[] f_arr : output_pattern_map.keySet()) {
+			Pattern p = output_pattern_map.get(f_arr);
+			double[][][] val_all = new double[f_arr.length][][];
+
+			for (String zip_ent_name : zip_ent_names) {
+				Matcher m = p.matcher(zip_ent_name);
+				if (m.matches()) {
+					ArrayList<String[]> line_list = map_trend_from_zip.get(zip_ent_name);
+					for (int fPt = 0; fPt < f_arr.length; fPt++) {
+						File f = f_arr[fPt];
+						if (f != null) {
+							double[][] val = val_all[fPt];
+							if (val == null) {
+								val = new double[line_list.size()][line_list.get(0).length];
+								// Fill in time column
+								for (int r = 1; r < line_list.size(); r++) {
+									val[r][0] = Integer.parseInt(line_list.get(r)[0]);
+								}
+								// Initialise output builder header
+								if (output_builder_map.get(f).isEmpty()) {
+									StringBuilder header = new StringBuilder();
+									header.append("Time");
+									for (int c = 1; c < line_list.get(0).length; c++) {
+										header.append(',');
+										header.append(line_list.get(0)[c]);
+									}
+									output_builder_map.get(f).add(header.toString());
+								}
+								val_all[fPt] = val;
+							}
+						}
+					}
+
+					Integer grp_id = Integer.valueOf(m.group(1));
+					Integer region_id = Integer.valueOf(m.group(2));
+					double[] adj_pop_size_by_grp = adj_pop_size_by_region_grp.get(region_id).get(grp_id);
+					double total_adj_pop_size = total_adj_pop_size_by_region_grp.get(region_id).get(grp_id);
+
+					for (int r = 1; r < line_list.size(); r++) {
+						String[] line = line_list.get(r);
+						for (int c = 1; c < line.length; c++) {
+							int baseVal = Integer.parseInt(line[c]);
+							for (int fPt = 0; fPt < f_arr.length; fPt++) {
+								if (f_arr[fPt] != null) {
+									double[][] val = val_all[fPt];
+									if (val != null) {
+										val[r][c] += baseVal * adj_pop_size_by_grp[fPt] / total_adj_pop_size;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			for (int fPt = 0; fPt < f_arr.length; fPt++) {
+				File f = f_arr[fPt];
+				double[][] val = val_all[fPt];
+
+				// Fill in output builder
+				if (val != null) {
+					for (int r = 1; r < val.length; r++) {
+						StringBuilder lineBuilder = new StringBuilder();
+						lineBuilder.append((int) val[r][0]);
+						for (int c = 1; c < val[r].length; c++) {
+							lineBuilder.append(',');
+							lineBuilder.append(val[r][c]);
+						}
+						output_builder_map.get(f).add(lineBuilder.toString());
+					}
+
+					// Printing of outputs
+					PrintWriter pWri_out = new PrintWriter(f);
+					for (String line : output_builder_map.get(f)) {
+						pWri_out.println(line);
+					}
+					pWri_out.close();
+
+					System.out.printf("Time trend extracted to %s\n", f.getAbsolutePath());
+
+				}
+			}
+
+		}
+
+	}
 }

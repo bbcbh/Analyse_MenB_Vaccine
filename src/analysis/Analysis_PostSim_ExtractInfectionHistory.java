@@ -18,7 +18,6 @@ import java.util.regex.Pattern;
 import sim.Runnable_MetaPopulation_MultiTransmission;
 import sim.SimulationInterface;
 import util.StaticMethods;
-import util.Util_7Z_CSV_Entry_Extract_Callable;
 
 
 public class Analysis_PostSim_ExtractInfectionHistory {
@@ -225,7 +224,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 			});
 
 			for (File zip : file_infhist_7z) {
-				map_infhist_lines = Util_7Z_CSV_Entry_Extract_Callable.extractedLinesFrom7Zip(zip, map_infhist_lines);
+				map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip, map_infhist_lines, null);
 			}
 		}
 
