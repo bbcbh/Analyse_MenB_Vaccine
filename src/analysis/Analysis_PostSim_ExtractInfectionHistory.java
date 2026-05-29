@@ -33,7 +33,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	private Properties prop;
 
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
-	private HashMap<String, ArrayList<String[]>> map_infhist_lines;
+	private HashMap<String, ArrayList<int[]>> map_infhist_lines;
 
 	public static final Pattern patten_zipEnt = Pattern.compile("\\[Seed_List_(\\d+)\\.csv,(\\d+)\\].*");
 	public static final Comparator<String> cmp_zipEnt = new Comparator<String>() {
@@ -82,7 +82,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		}
 		HashMap<String, double[]> map_event_prob_by_file = new HashMap<>();
 
-		for (Entry<String, ArrayList<String[]>> ent : map_infhist_lines.entrySet()) {
+		for (Entry<String, ArrayList<int[]>> ent : map_infhist_lines.entrySet()) {
 			Matcher m_map_infhist = infect_hist_key.matcher(ent.getKey());
 			if (m_map_infhist.matches()) {
 				Long cMap = Long.valueOf(m_map_infhist.group(3));
@@ -90,11 +90,11 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				double[] event_prob_sum = new double[sample_time.length];
 				map_event_prob_by_file.put(ent.getKey(), event_prob_sum);
 
-				ArrayList<String[]> inf_hist_rows = ent.getValue();
+				ArrayList<int[]> inf_hist_rows = ent.getValue();
 
-				for (int r = 1; r < inf_hist_rows.size(); r++) {
-					String[] row = inf_hist_rows.get(r);
-					Integer id = Integer.parseInt(row[0]);
+				for (int r = 0; r < inf_hist_rows.size(); r++) {
+					int[] row = inf_hist_rows.get(r);
+					Integer id = row[0];
 					int[] indiv_ent = indivMap.get(id);
 					int start_grp = indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
 					if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
@@ -102,7 +102,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 						int inf_count = 0;
 						for (int inf_pt = 2; inf_pt < row.length; inf_pt += 3) { //
-							int exposure_start = Integer.parseInt(row[inf_pt]);
+							int exposure_start = row[inf_pt];
 							// Stop checking if inf start after sample period
 							if (exposure_start >= sample_time[sample_time.length - 1]) {
 								break;
@@ -113,7 +113,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 								exposure_end = Math.min(exposure_end,
 										indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT]);
 							} else {
-								exposure_end = Math.min(exposure_end, Integer.parseInt(row[inf_pt + 1]));
+								exposure_end = Math.min(exposure_end, row[inf_pt + 1]);
 							}
 
 							if (exposure_end > sample_time[0]) {
@@ -281,27 +281,28 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 								offset += readLen;
 							}
 
-							ArrayList<String[]> lines_split = new ArrayList<>();
+							ArrayList<int[]> lines_split = new ArrayList<>();
 							String[] lines = new String(content).split("\\n");
 
-							for (int i = 0; i < lines.length; i++) {
+							for (int i = 1; i < lines.length; i++) {
 								String line = lines[i];
 								String[] lineEnt = line.split(",");
-								if (i == 0) {
-									lines_split.add(lineEnt); // Always include header
+								int[] val = new int[lineEnt.length];
+								for(int c = 0; c < val.length; c++) {
+									val[c] = Integer.parseInt(lineEnt[c]);
+								}
+								if (incl_start_grps == null) {
+									lines_split.add(val);
 								} else {
-									if (incl_start_grps == null) {
-										lines_split.add(lineEnt);
-									} else {
-										// Only load line with start_grp in incl_start_grps
-										Integer id = Integer.parseInt(lineEnt[0]);
-										int start_grp = indivMap
-												.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
-										if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
-											lines_split.add(lineEnt);
-										}
+									// Only load line with start_grp in incl_start_grps
+									Integer id = val[0];
+									int start_grp = indivMap
+											.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+									if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+										lines_split.add(val);
 									}
 								}
+
 							}
 							map_infhist_lines.put(entName, lines_split);
 
