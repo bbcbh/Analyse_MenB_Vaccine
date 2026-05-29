@@ -15,10 +15,12 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
+import org.apache.commons.compress.archivers.sevenz.SevenZFile;
+
 import sim.Runnable_MetaPopulation_MultiTransmission;
 import sim.SimulationInterface;
 import util.StaticMethods;
-
 
 public class Analysis_PostSim_ExtractInfectionHistory {
 
@@ -76,7 +78,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 		// Code start
 		if (map_infhist_lines.isEmpty()) {
-			loadInfHistMap();
+			loadInfHistMap(incl_start_grps);
 		}
 		HashMap<String, double[]> map_event_prob_by_file = new HashMap<>();
 
@@ -199,7 +201,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 	}
 
-	private void loadInfHistMap() throws IOException {
+	private void loadInfHistMap(int[] incl_start_grps) throws IOException {
 
 		// Reading of PROP file
 		File propFile = new File(basedir, SimulationInterface.FILENAME_PROP);
@@ -224,45 +226,132 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 			});
 
 			for (File zip : file_infhist_7z) {
-				map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip, map_infhist_lines, null);
-			}
-		}
+				// map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip,
+				// map_infhist_lines, null);
 
-		for (Entry<String, ArrayList<String[]>> ent : map_infhist_lines.entrySet()) {
-			Matcher m_map_infhist = infect_hist_key.matcher(ent.getKey());
-			if (m_map_infhist.matches()) {
-				Long cMap = Long.valueOf(m_map_infhist.group(3));
+				SevenZFile inputZip = new SevenZFile(zip);
+				SevenZArchiveEntry inputEnt;
+				final int BUFFER = 2048;
 
-				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				if (indivMap == null) {
-					indivMap = new HashMap<>();
-					map_indiv_stat.put(cMap, indivMap);
+				while ((inputEnt = inputZip.getNextEntry()) != null) {
+					if (!inputEnt.isDirectory()) {
+						String entName = inputEnt.getName();
+						// Load map_indiv_stat for each map
+						Matcher m_map_infhist = infect_hist_key.matcher(entName);
+						if (m_map_infhist.matches()) {
+							Long cMap = Long.valueOf(m_map_infhist.group(3));
 
-					File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
-					demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
-					String[] pop_stat_line = StaticMethods.extracted_lines_from_text(new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
-					// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
-					for (int i = 1; i < pop_stat_line.length; i++) {
-						String[] lineEnt = pop_stat_line[i].split(",");
-						int[] indiv_ent = new int[Runnable_MetaPopulation_MultiTransmission.LENGTH_INDIV_MAP];
-						indivMap.put(Integer.valueOf(lineEnt[0]), indiv_ent);
-						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP] = Integer
-								.parseInt(lineEnt[1]);
-						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE] = Integer
-								.parseInt(lineEnt[2]);
-						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT] = Integer
-								.parseInt(lineEnt[3]);
-						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT] = Integer
-								.parseInt(lineEnt[4]);
-						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
-								.parseInt(lineEnt[5]);
+							HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+							if (indivMap == null) {
+								indivMap = new HashMap<>();
+								map_indiv_stat.put(cMap, indivMap);
+
+								File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
+								demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
+								String[] pop_stat_line = StaticMethods.extracted_lines_from_text(
+										new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
+								// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
+								for (int i = 1; i < pop_stat_line.length; i++) {
+									String[] lineEnt = pop_stat_line[i].split(",");
+									int[] indiv_ent = new int[Runnable_MetaPopulation_MultiTransmission.LENGTH_INDIV_MAP];
+									indivMap.put(Integer.valueOf(lineEnt[0]), indiv_ent);
+									indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP] = Integer
+											.parseInt(lineEnt[1]);
+									indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE] = Integer
+											.parseInt(lineEnt[2]);
+									indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT] = Integer
+											.parseInt(lineEnt[3]);
+									indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT] = Integer
+											.parseInt(lineEnt[4]);
+									indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
+											.parseInt(lineEnt[5]);
+								}
+							}
+
+							// Load all line
+							int size = (int) inputEnt.getSize();
+
+							byte[] content = new byte[size];
+							int offset = 0;
+							while (offset < size) {
+								int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
+								if (readLen < 0) {
+									break;
+								}
+								offset += readLen;
+							}
+
+							ArrayList<String[]> lines_split = new ArrayList<>();
+							String[] lines = new String(content).split("\\n");
+
+							for (int i = 0; i < lines.length; i++) {
+								String line = lines[i];
+								String[] lineEnt = line.split(",");
+								if (i == 0) {
+									lines_split.add(lineEnt); // Always include header
+								} else {
+									if (incl_start_grps == null) {
+										lines_split.add(lineEnt);
+									} else {
+										// Only load line with start_grp in incl_start_grps
+										Integer id = Integer.parseInt(lineEnt[0]);
+										int start_grp = indivMap
+												.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+										if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+											lines_split.add(lineEnt);
+										}
+									}
+								}
+							}
+							map_infhist_lines.put(entName, lines_split);
+
+						} else {
+							System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
+						}
+
 					}
 				}
+				inputZip.close();
 
-			} else {
-				System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", ent.getKey());
 			}
 		}
+
+//		for (Entry<String, ArrayList<String[]>> ent : map_infhist_lines.entrySet()) {
+//			Matcher m_map_infhist = infect_hist_key.matcher(ent.getKey());
+//			if (m_map_infhist.matches()) {
+//				Long cMap = Long.valueOf(m_map_infhist.group(3));
+//
+//				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+//				if (indivMap == null) {
+//					indivMap = new HashMap<>();
+//					map_indiv_stat.put(cMap, indivMap);
+//
+//					File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
+//					demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
+//					String[] pop_stat_line = StaticMethods
+//							.extracted_lines_from_text(new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
+//					// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
+//					for (int i = 1; i < pop_stat_line.length; i++) {
+//						String[] lineEnt = pop_stat_line[i].split(",");
+//						int[] indiv_ent = new int[Runnable_MetaPopulation_MultiTransmission.LENGTH_INDIV_MAP];
+//						indivMap.put(Integer.valueOf(lineEnt[0]), indiv_ent);
+//						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP] = Integer
+//								.parseInt(lineEnt[1]);
+//						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE] = Integer
+//								.parseInt(lineEnt[2]);
+//						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT] = Integer
+//								.parseInt(lineEnt[3]);
+//						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT] = Integer
+//								.parseInt(lineEnt[4]);
+//						indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
+//								.parseInt(lineEnt[5]);
+//					}
+//				}
+//
+//			} else {
+//				System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", ent.getKey());
+//			}
+//		}
 	}
 
 	public static void generateInfectionHistCSV(HashMap<String, double[]> resultmap, int[] sample_time, File tarFile)
