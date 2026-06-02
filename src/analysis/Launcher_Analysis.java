@@ -133,70 +133,7 @@ public class Launcher_Analysis {
 				// Time trend
 				correctUsage = true;
 				Analysis_PostSim_ExtractTimeTrends analyse = new Analysis_PostSim_ExtractTimeTrends();
-				analyse.analyse(args);
-				
-				// Group region statistics by Indigenous status and gender
-				File treatment_trend_dir = new File(args[0], "Timetrend_Treatment_GrpLoc");	
-				File numInf_trend_dir = new File(args[0], "Timetrend_Infectious_GrpLoc");	
-				File adj_pop_size = new File(args[0], "Adj_pop_size.csv");
-				Map<File[], Pattern> output_map;
-				
-				output_map = Map.ofEntries(
-						Map.entry(new File[] {
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[01234]_at_CITY.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[01234]_at_REGION.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[01234]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Treatment_by_GrpLoc_Grp_([01234])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[01234]_at_CITY.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[01234]_at_REGION.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[01234]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Treatment_by_GrpLoc_Grp_(1[01234])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[56789]_at_CITY.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[56789]_at_REGION.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_[56789]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Treatment_by_GrpLoc_Grp_([56789])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[56789]_at_CITY.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[56789]_at_REGION.csv")),
-								new File(treatment_trend_dir, String.format("Timetrend_Treatment_by_GrpLoc_Grp_1[56789]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Treatment_by_GrpLoc_Grp_(1[56789])_Loc_(\\d+).csv")));
-				
-				
-				System.out.println("Start analysing treatment time trend from zip...");
-				Analysis_PostSim_ExtractTimeTrends.extractGrpRegionTimeTrendFromZip(
-						new File(treatment_trend_dir,"Timetrend_Treatment_by_GrpLoc_ALL.csv.7z"), 
-						adj_pop_size, output_map);	
-				
-				
-				output_map = Map.ofEntries(
-						Map.entry(new File[] {
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_CITY.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REGION.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([01234])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_CITY.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REGION.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[01234])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_CITY.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REGION.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([56789])_Loc_(\\d+).csv")),
-						Map.entry(new File[] {
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_CITY.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REGION.csv")),
-								new File(numInf_trend_dir, String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REMOTE.csv")),
-						}, Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[56789])_Loc_(\\d+).csv")));
-			
-				System.out.println("Start analysing prevalence time trend from zip...");
-				Analysis_PostSim_ExtractTimeTrends.extractGrpRegionTimeTrendFromZip(
-						new File(numInf_trend_dir,"Timetrend_Infectious_by_GrpLoc_ALL.csv.7z"), 
-						adj_pop_size, output_map);	
-				
+				analyse.analyse(args);						
 				
 			}
 		}
