@@ -181,7 +181,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				pri_batch_del.println("#!/bin/bash");
 				pri_batch_del.println("echo \"Batch deleting...\"");
 
-				System.out.println("Incomplete directories:");
+				System.out.printf("Incomplete directories (%d in total):\n", incomplete_dirs.size());
 				for (File incompleteDir : incomplete_dirs) {
 					System.out.printf("   -seedMap=%s/%s.csv\n", incompleteDir.getName(), incompleteDir.getName());
 					pri_batch_del.printf("find ./%s -type f \\! -name \"Seed_List*csv\" -delete\n",
@@ -191,7 +191,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				pri_batch_del.println("echo \"Batch deleting completed\"");
 
-				pri_batch_del.close();
+				pri_batch_del.close();				
+				System.exit(0);
 			}
 		}
 
