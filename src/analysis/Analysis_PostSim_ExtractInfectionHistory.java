@@ -24,7 +24,7 @@ import util.StaticMethods;
 
 public class Analysis_PostSim_ExtractInfectionHistory {
 
-	private Pattern res_dir_format = Pattern.compile("Seed_List_(\\d+)");
+	private Pattern res_dir_format = Pattern.compile("Seed_List.*_(\\d+)");
 	private Pattern infect_hist_7z_format = Pattern.compile("InfectHist_(.*)\\.csv\\.7z");
 	private Pattern infect_hist_key = Pattern.compile("\\[(.*),(\\d+)\\]InfectHist_(-?\\d+)_(-?\\d+).csv");
 
