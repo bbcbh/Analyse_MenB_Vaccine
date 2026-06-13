@@ -35,7 +35,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
 	private HashMap<String, ArrayList<int[]>> map_infhist_lines;
 
-	public static final Pattern patten_zipEnt = Pattern.compile("\\[Seed_List_(\\d+)\\.csv,(\\d+)\\].*");
+	public static final Pattern patten_zipEnt = Pattern.compile("\\[Seed_List.*_(\\d+)\\.csv,(\\d+)\\].*");
 	public static final Comparator<String> cmp_zipEnt = new Comparator<String>() {
 		@Override
 		public int compare(String o1, String o2) {
