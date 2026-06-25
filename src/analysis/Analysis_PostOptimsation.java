@@ -68,6 +68,7 @@ public class Analysis_PostOptimsation {
 				}
 			});
 			for (File csv : csv_list) {
+				System.out.printf("Looking into %s\n", csv.getAbsolutePath());
 				String key = csv.getName();
 				String[] lines = StaticMethods.extracted_lines_from_text(csv);
 				StringBuilder bld;
