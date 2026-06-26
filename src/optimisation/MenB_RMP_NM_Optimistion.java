@@ -31,7 +31,7 @@ public class MenB_RMP_NM_Optimistion extends Abstract_Optimisation {
 	}
 
 	protected MultivariateFunction generateObjectiveFunc(int seed_row, String[] seed_file_def_val) {
-		String[] path = new String[] { path_dirName, String.format(OPTDIR_FORMAT, path_seed, seed_row - 1),
+		String[] path = new String[] { simDirPath, String.format(OPTDIR_FORMAT, seedDirName, seed_row - 1),
 				path_region_path, path_grp_size };
 		ResidualFunc_RMP func = new ResidualFunc_RMP(path, new String[][] { seed_file_header, seed_file_def_val },
 				param_to_opt, cross_ref_map, opt_outcome_csv, opt_setting, opt_time_range,
