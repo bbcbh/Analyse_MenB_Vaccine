@@ -20,7 +20,7 @@ import org.apache.commons.math3.analysis.MultivariateFunction;
 
 import analysis.Analysis_PostSim_ExtractTimeTrends;
 import sim.Abstract_Runnable_ClusterModel_Transmission;
-import sim.Runnable_MenB_Vaccine;
+import sim.Runnable_ClusterModel_MultiTransmission;
 import sim.Runnable_MenB_Vaccine_RMP;
 import sim.Simulation_ClusterModelTransmission;
 import sim.Simulation_MenB_Vaccine;
@@ -197,7 +197,7 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				public Abstract_Runnable_ClusterModel_Transmission generateDefaultRunnable(long cMap_seed,
 						long sim_seed, Properties loadedProperties) {
 					if (preGenSeedFile != null) {
-						loadedProperties.put(Runnable_MenB_Vaccine.PROP_SEED_FILE_PATH,
+						loadedProperties.put(Runnable_ClusterModel_MultiTransmission.PROP_SEED_FILE_PATH,
 								preGenSeedFile.getAbsolutePath());
 					}
 					Runnable_MenB_Vaccine_RMP runnable = new Runnable_MenB_Vaccine_RMP(cMap_seed, sim_seed,
