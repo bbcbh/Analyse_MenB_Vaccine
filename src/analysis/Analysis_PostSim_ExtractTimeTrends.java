@@ -163,8 +163,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					File seedFile = new File(simDir, String.format("%s.csv", simDir.getName()));
 					int numSimMax = StaticMethods.extracted_lines_from_text(seedFile).length - 1;
 					System.out.printf(
-							"%d unzipped csv found. Attempting to generate zip if there are %d results of same type.\n",
-							unzip_results.length, numSimMax);
+							"%d unzipped csv found in %s. Attempting to generate zip if there are %d results of same type.\n",							
+							unzip_results.length, simDir.getName(), numSimMax);
 
 					HashMap<String, ArrayList<File>> zipType_map = new HashMap<>();
 
