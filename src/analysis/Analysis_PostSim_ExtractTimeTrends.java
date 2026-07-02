@@ -146,8 +146,57 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 		// Check completeness of results
 		if (flag_check_completeness) {
+			Pattern pattern_unzipped_result_csv = Pattern.compile("\\[.*\\](.*)_-?\\d+\\.csv");
+
 			ArrayList<File> incomplete_dirs = new ArrayList<>();
 			for (File simDir : dirs_sim) {
+
+				// Check and zip result csv if found
+				File[] unzip_results = simDir.listFiles(new FileFilter() {
+					@Override
+					public boolean accept(File pathname) {
+						return pattern_unzipped_result_csv.matcher(pathname.getName()).matches();
+					}
+				});
+
+				if (unzip_results.length > 0) {
+					File seedFile = new File(simDir, String.format("%s.csv", simDir.getName()));
+					int numSimMax = StaticMethods.extracted_lines_from_text(seedFile).length - 1;
+					System.out.printf(
+							"%d unzipped csv found. Attempting to generate zip if there are %d results of same type.\n",
+							unzip_results.length, numSimMax);
+
+					HashMap<String, ArrayList<File>> zipType_map = new HashMap<>();
+
+					for (File csv : unzip_results) {
+						Matcher m = pattern_unzipped_result_csv.matcher(csv.getName());
+						m.matches();
+						String zipType = m.group(1);
+						ArrayList<File> zipFiles = zipType_map.get(zipType);
+						if (zipFiles == null) {
+							zipFiles = new ArrayList<>();
+							zipType_map.put(zipType, zipFiles);
+						}
+						zipFiles.add(csv);
+					}
+
+					for (Entry<String, ArrayList<File>> zipCandidateEnt : zipType_map.entrySet()) {
+						if (zipCandidateEnt.getValue().size() == numSimMax) {
+							File target_zip = new File(simDir, String.format("%s.csv.7z", zipCandidateEnt.getKey()));
+							if (target_zip.exists()) {
+								System.out.printf("Warning! Zipping bypassed as target zip %s already exist.\n",
+										target_zip.getName());
+							} else {
+								StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]),
+										target_zip,	true);
+							}
+
+						}
+
+					}
+
+				}
+
 				File[] checkFile = simDir.listFiles(new FileFilter() {
 					@Override
 					public boolean accept(File pathname) {
@@ -191,7 +240,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				pri_batch_del.println("echo \"Batch deleting completed\"");
 
-				pri_batch_del.close();				
+				pri_batch_del.close();
 				System.exit(0);
 			}
 		}
@@ -815,55 +864,59 @@ public class Analysis_PostSim_ExtractTimeTrends {
 						output_map);
 			}
 
-			if(numInf_trend_dir.isDirectory()) {
-			output_map = Map
-					.ofEntries(
-							Map.entry(
-									new File[] {
-											new File(numInf_trend_dir,
-													String.format(
-															"Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_CITY.csv")),
-											new File(numInf_trend_dir,
-													String.format(
-															"Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REGION.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REMOTE.csv")), },
-									Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([01234])_Loc_(\\d+).csv")),
-							Map.entry(
-									new File[] {
-											new File(numInf_trend_dir,
-													String.format(
-															"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_CITY.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REGION.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REMOTE.csv")), },
-									Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[01234])_Loc_(\\d+).csv")),
-							Map.entry(
-									new File[] {
-											new File(numInf_trend_dir,
-													String.format(
-															"Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_CITY.csv")),
-											new File(
-													numInf_trend_dir,
-													String.format(
-															"Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REGION.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REMOTE.csv")), },
-									Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([56789])_Loc_(\\d+).csv")),
-							Map.entry(
-									new File[] { new File(
-											numInf_trend_dir,
-											String.format("Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_CITY.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REGION.csv")),
-											new File(numInf_trend_dir, String.format(
-													"Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REMOTE.csv")), },
-									Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[56789])_Loc_(\\d+).csv")));
+			if (numInf_trend_dir.isDirectory()) {
+				output_map = Map.ofEntries(
+						Map.entry(
+								new File[] {
+										new File(numInf_trend_dir,
+												String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_CITY.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REGION.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_[01234]_at_REMOTE.csv")), },
+								Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([01234])_Loc_(\\d+).csv")),
+						Map.entry(
+								new File[] {
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_CITY.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REGION.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[01234]_at_REMOTE.csv")), },
+								Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[01234])_Loc_(\\d+).csv")),
+						Map.entry(
+								new File[] {
+										new File(numInf_trend_dir,
+												String.format("Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_CITY.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REGION.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_[56789]_at_REMOTE.csv")), },
+								Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_([56789])_Loc_(\\d+).csv")),
+						Map.entry(
+								new File[] {
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_CITY.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REGION.csv")),
+										new File(numInf_trend_dir,
+												String.format(
+														"Timetrend_NumInfect_by_GrpLoc_Grp_1[56789]_at_REMOTE.csv")), },
+								Pattern.compile("Timetrend_Infectious_by_GrpLoc_Grp_(1[56789])_Loc_(\\d+).csv")));
 
-			System.out.println("Start analysing prevalence time trend from zip...");
-			Analysis_PostSim_ExtractTimeTrends.extractGrpRegionTimeTrendFromZip(
-					new File(numInf_trend_dir, "Timetrend_Infectious_by_GrpLoc_ALL.csv.7z"), adj_pop_size, output_map);
+				System.out.println("Start analysing prevalence time trend from zip...");
+				Analysis_PostSim_ExtractTimeTrends.extractGrpRegionTimeTrendFromZip(
+						new File(numInf_trend_dir, "Timetrend_Infectious_by_GrpLoc_ALL.csv.7z"), adj_pop_size,
+						output_map);
 			}
 		}
 		if (flag_infection_hist_pid) {
