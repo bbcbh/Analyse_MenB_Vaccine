@@ -345,10 +345,9 @@ public class Analysis_PostSim_ExtractTimeTrends {
 							}
 						} catch (Exception ex) {
 							System.err.printf("Error! Following %s encountered during reading of %s entry.\n",
-									ex.getMessage(), sel_file[0].getAbsolutePath());
+									ex.toString(), sel_file[0].getAbsolutePath());
 							ex.printStackTrace(System.err);
 							error_dirs.add(simDir.getName());
-
 						}
 
 					}
