@@ -345,7 +345,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 							}
 						} catch (Exception ex) {
-							System.err.printf("Error! Following %s encountered during reading of %s entry.\n",
+							System.err.printf("Error! %s encountered during reading of %s entry.\n",
 									ex.getClass().getName(), sel_file[0].getAbsolutePath());
 							ex.printStackTrace(System.err);
 							error_dirs.add(simDir);
@@ -372,14 +372,14 @@ public class Analysis_PostSim_ExtractTimeTrends {
 						});
 
 						if (zipFiles.length > 0) {
-							for (File zip : zipFiles) {								
+							for (File zip : zipFiles) {
 								System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
 								try {
 									HashMap<String, ArrayList<String[]>> map = new HashMap<>();
 									map = StaticMethods.extractedLinesFrom7Zip(zip, map, null);
 									for (Entry<String, ArrayList<String[]>> mapEnt : map.entrySet()) {
 										if (mapEnt.getValue().size() > 0) {
-											PrintWriter pWri = new PrintWriter(err_dir, mapEnt.getKey());
+											PrintWriter pWri = new PrintWriter(new File(err_dir, mapEnt.getKey()));
 											for (String[] ent : mapEnt.getValue()) {
 												for (int i = 0; i < ent.length; i++) {
 													if (i != 0) {
@@ -391,8 +391,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 											}
 											pWri.close();
 										}
-									}									
-									//Files.delete(zip.toPath());								
+									}
+									// Files.delete(zip.toPath());
 								} catch (Exception ex) {
 									ex.printStackTrace(System.err);
 								}
