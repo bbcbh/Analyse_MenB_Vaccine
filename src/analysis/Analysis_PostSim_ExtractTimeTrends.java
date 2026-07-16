@@ -373,7 +373,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 						if (zipFiles.length > 0) {
 							for (File zip : zipFiles) {
-								System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
+								//System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
 								try {
 									HashMap<String, ArrayList<String[]>> map = new HashMap<>();
 									map = StaticMethods.extractedLinesFrom7Zip(zip, map, null);
@@ -394,6 +394,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 									}
 									Files.delete(zip.toPath());
 								} catch (Exception ex) {
+									System.err.printf("%s encounter at extracting %s.\n", ex.getClass().getName(), zip.getAbsolutePath());
 									ex.printStackTrace(System.err);
 								}
 							}
