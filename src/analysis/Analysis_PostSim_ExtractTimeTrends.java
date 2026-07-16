@@ -210,7 +210,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 									StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]), target_zip,
 											true);
 								} else {
-									System.out.printf("Warning! Zipping bypassed as target zip %s in %s already exist.\n",
+									System.out.printf(
+											"Warning! Zipping bypassed as target zip %s in %s already exist.\n",
 											target_zip.getName(), simDir.getName());
 								}
 
@@ -283,7 +284,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				// K = ColName, V = Map< DirName:SeedFileName:SeedFileRow, Entries>
 				HashMap<String, HashMap<String, String[]>> timetrendMap = new HashMap<>();
 
-				ArrayList<String> error_dirs = new ArrayList<>();
+				ArrayList<File> error_dirs = new ArrayList<>();
 
 				for (File simDir : dirs_sim) {
 					File[] sel_file = simDir.listFiles(new FileFilter() {
@@ -345,9 +346,10 @@ public class Analysis_PostSim_ExtractTimeTrends {
 							}
 						} catch (Exception ex) {
 							System.err.printf("Error! Following %s encountered during reading of %s entry.\n",
-									ex.toString(), sel_file[0].getAbsolutePath());
+									ex.getClass().getName(), sel_file[0].getAbsolutePath());
 							ex.printStackTrace(System.err);
-							error_dirs.add(simDir.getName());
+							error_dirs.add(simDir);
+
 						}
 
 					}
@@ -356,9 +358,48 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				if (!error_dirs.isEmpty()) {
 					System.out.printf("The following %s sim directory has error(s):\n", error_dirs.size());
-					for (String err_dir : error_dirs) {
-						System.out.printf("   -seedMap=%s/%s.csv\n", err_dir, err_dir);
+					for (File err_dir : error_dirs) {
+						System.out.printf("   -seedMap=%s/%s.csv\n", err_dir.getName(), err_dir.getName());
 					}
+
+					for (File err_dir : error_dirs) {
+						// Unzip all entry if it can
+						File[] zipFiles = err_dir.listFiles(new FileFilter() {
+							@Override
+							public boolean accept(File pathname) {
+								return pathname.getName().endsWith("7z");
+							}
+						});
+
+						if (zipFiles.length > 0) {
+							for (File zip : zipFiles) {								
+								System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
+								try {
+									HashMap<String, ArrayList<String[]>> map = new HashMap<>();
+									map = StaticMethods.extractedLinesFrom7Zip(zip, map, null);
+									for (Entry<String, ArrayList<String[]>> mapEnt : map.entrySet()) {
+										if (mapEnt.getValue().size() > 0) {
+											PrintWriter pWri = new PrintWriter(err_dir, mapEnt.getKey());
+											for (String[] ent : mapEnt.getValue()) {
+												for (int i = 0; i < ent.length; i++) {
+													if (i != 0) {
+														pWri.print(',');
+													}
+													pWri.print(ent[i]);
+												}
+												pWri.println();
+											}
+											pWri.close();
+										}
+									}									
+									//Files.delete(zip.toPath());								
+								} catch (Exception ex) {
+									ex.printStackTrace(System.err);
+								}
+							}
+						}
+					}
+
 				}
 
 				if (timetrendMap.isEmpty()) {
