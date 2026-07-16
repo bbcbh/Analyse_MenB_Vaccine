@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -163,7 +165,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					File seedFile = new File(simDir, String.format("%s.csv", simDir.getName()));
 					int numSimMax = StaticMethods.extracted_lines_from_text(seedFile).length - 1;
 					System.out.printf(
-							"%d unzipped csv found in %s. Attempting to generate zip if there are %d results of same type.\n",							
+							"%d unzipped csv found in %s. Attempting to generate zip if there are %d results of same type.\n",
 							unzip_results.length, simDir.getName(), numSimMax);
 
 					HashMap<String, ArrayList<File>> zipType_map = new HashMap<>();
@@ -183,12 +185,38 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					for (Entry<String, ArrayList<File>> zipCandidateEnt : zipType_map.entrySet()) {
 						if (zipCandidateEnt.getValue().size() == numSimMax) {
 							File target_zip = new File(simDir, String.format("%s.csv.7z", zipCandidateEnt.getKey()));
+
 							if (target_zip.exists()) {
-								System.out.printf("Warning! Zipping bypassed as target zip %s already exist.\n",
-										target_zip.getName());
+								boolean overWrite = false;
+								HashMap<String, ArrayList<String[]>> zip_ent = new HashMap<>();
+								try {
+									zip_ent = StaticMethods.extractedLinesFrom7Zip(target_zip, zip_ent, null);
+									Files.move(target_zip.toPath(),
+											new File(simDir,
+													String.format("%d_%s", System.currentTimeMillis(),
+															target_zip.getName()))
+													.toPath(),
+											StandardCopyOption.REPLACE_EXISTING);
+									overWrite = zip_ent.size() >= numSimMax;
+
+								} catch (Exception ex) {
+									overWrite = true;
+								}
+								if (overWrite) {
+									System.out.printf(
+											"Warning! Existing target zip %s in %s is replaced due to incompleteness and/or IO error.\n",
+											target_zip.getName(), simDir.getName());
+
+									StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]), target_zip,
+											true);
+								} else {
+									System.out.printf("Warning! Zipping bypassed as target zip %s in %s already exist.\n",
+											target_zip.getName(), simDir.getName());
+								}
+
 							} else {
-								StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]),
-										target_zip,	true);
+								StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]), target_zip,
+										true);
 							}
 
 						}
