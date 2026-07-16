@@ -392,7 +392,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 											pWri.close();
 										}
 									}
-									// Files.delete(zip.toPath());
+									Files.delete(zip.toPath());
 								} catch (Exception ex) {
 									ex.printStackTrace(System.err);
 								}
