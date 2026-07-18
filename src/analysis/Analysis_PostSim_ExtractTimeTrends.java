@@ -164,6 +164,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				if (unzip_results.length > 0) {
 					File seedFile = new File(simDir, String.format("%s.csv", simDir.getName()));
 					int numSimMax = StaticMethods.extracted_lines_from_text(seedFile).length - 1;
+
 					System.out.printf(
 							"%d unzipped csv found in %s. Attempting to generate zip if there are %d results of same type.\n",
 							unzip_results.length, simDir.getName(), numSimMax);
@@ -183,43 +184,104 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					}
 
 					for (Entry<String, ArrayList<File>> zipCandidateEnt : zipType_map.entrySet()) {
-						if (zipCandidateEnt.getValue().size() == numSimMax) {
-							File target_zip = new File(simDir, String.format("%s.csv.7z", zipCandidateEnt.getKey()));
 
+						// Check for results already in zip and expanse if needed
+						File target_zip = new File(simDir, String.format("%s.csv.7z", zipCandidateEnt.getKey()));
+
+						ArrayList<File> csv_raw_list = zipCandidateEnt.getValue();
+
+						if (target_zip.exists()) {
+
+							HashMap<String, ArrayList<String[]>> zip_ent = new HashMap<>();
+							try {
+								zip_ent = StaticMethods.extractedLinesFrom7Zip(target_zip, zip_ent, null);								
+
+							} catch (Exception ex) {
+								System.err.printf(
+										"Warning! Existing target zip %s in %s could be replaced due to incompleteness and/or IO error.\n",
+										target_zip.getName(), simDir.getName());
+
+							}
+							for (File csvRaw : csv_raw_list) {
+								if (zip_ent.containsKey(csvRaw.getName())) {
+									ArrayList<String[]> entries_in_zip = zip_ent.get(csvRaw.getName());
+									String[] entries_raw = StaticMethods.extracted_lines_from_text(csvRaw);
+
+									boolean replaceByZip = entries_in_zip.size() > entries_raw.length;
+
+									for (int i = 0; i < entries_raw.length && !replaceByZip; i++) {
+										String[] line_raw = entries_raw[i].split(",");
+										replaceByZip = line_raw.length < entries_in_zip.get(i).length;
+									}
+
+									if (replaceByZip) {
+										try {
+											Files.move(csvRaw.toPath(),
+													new File(csvRaw.getParent(),
+															String.format("%d_%s", System.currentTimeMillis(),
+																	csvRaw.getName()))
+															.toPath(),
+													StandardCopyOption.REPLACE_EXISTING);
+
+											PrintWriter pWri = new PrintWriter(csvRaw);
+											for (String[] ent : entries_in_zip) {
+												for (int s = 0; s < ent.length; s++) {
+													if (s != 0) {
+														pWri.print(',');
+													}
+													pWri.print(ent[s]);
+												}
+												pWri.println();
+											}
+											pWri.close();
+										} catch (Exception e) {
+											System.err.printf(
+													"Warning! Error in attempt to replace %s in %s from entry in %s.\n",
+													csvRaw.getName(), simDir.getName(), target_zip.getName());
+										}
+									}
+								}
+							}
+							for (Entry<String, ArrayList<String[]>> zipped_ent : zip_ent.entrySet()) {
+								File testCSV = new File(simDir, zipped_ent.getKey());
+								if (!testCSV.exists() && zipped_ent.getValue().size() > 0 ) {
+									try {
+										PrintWriter pWri = new PrintWriter(testCSV);
+										for (String[] ent : zipped_ent.getValue()) {
+											for (int s = 0; s < ent.length; s++) {
+												if (s != 0) {
+													pWri.print(',');
+												}
+												pWri.print(ent[s]);
+											}
+											pWri.println();
+										}
+										pWri.close();										
+										csv_raw_list.add(testCSV);
+									} catch (Exception e) {
+										System.err.printf(
+												"Warning! Error in generating new CSV %s from existing %s in %s.\n",
+												testCSV.getName(), target_zip.getName(), simDir.getName());
+									}
+								}
+							}
+						}
+						// Rezip files
+						if (csv_raw_list.size() == numSimMax) {
 							if (target_zip.exists()) {
-								boolean overWrite = false;
-								HashMap<String, ArrayList<String[]>> zip_ent = new HashMap<>();
-								try {
-									zip_ent = StaticMethods.extractedLinesFrom7Zip(target_zip, zip_ent, null);
-									Files.move(target_zip.toPath(),
-											new File(simDir,
-													String.format("%d_%s", System.currentTimeMillis(),
-															target_zip.getName()))
-													.toPath(),
-											StandardCopyOption.REPLACE_EXISTING);
-									overWrite = zip_ent.size() >= numSimMax;
-
-								} catch (Exception ex) {
-									overWrite = true;
-								}
-								if (overWrite) {
-									System.out.printf(
-											"Warning! Existing target zip %s in %s is replaced due to incompleteness and/or IO error.\n",
-											target_zip.getName(), simDir.getName());
-
-									StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]), target_zip,
-											true);
-								} else {
-									System.out.printf(
-											"Warning! Zipping bypassed as target zip %s in %s already exist.\n",
-											target_zip.getName(), simDir.getName());
-								}
-
-							} else {
-								StaticMethods.zipFile(zipCandidateEnt.getValue().toArray(new File[0]), target_zip,
-										true);
+								Files.move(target_zip.toPath(),
+										new File(target_zip.getParent(),
+												String.format("%d_%s", System.currentTimeMillis(),
+														target_zip.getName()))
+												.toPath(),
+										StandardCopyOption.REPLACE_EXISTING);
 							}
 
+							StaticMethods.zipFile(csv_raw_list.toArray(new File[0]), target_zip, true);
+						} else {
+							System.err.printf(
+									"Warning! %s in %s not replaced/generated due to insuffient number of CSVs (%d < %d).\n",
+									target_zip.getName(), simDir.getName(), csv_raw_list.size(), numSimMax);
 						}
 
 					}
@@ -373,7 +435,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 						if (zipFiles.length > 0) {
 							for (File zip : zipFiles) {
-								//System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
+								// System.out.printf("Expanding %s.\n", zip.getAbsolutePath());
 								try {
 									HashMap<String, ArrayList<String[]>> map = new HashMap<>();
 									map = StaticMethods.extractedLinesFrom7Zip(zip, map, null);
@@ -394,7 +456,8 @@ public class Analysis_PostSim_ExtractTimeTrends {
 									}
 									Files.delete(zip.toPath());
 								} catch (Exception ex) {
-									System.err.printf("%s encounter at extracting %s.\n", ex.getClass().getName(), zip.getAbsolutePath());
+									System.err.printf("%s encounter at extracting %s.\n", ex.getClass().getName(),
+											zip.getAbsolutePath());
 									ex.printStackTrace(System.err);
 								}
 							}
