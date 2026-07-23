@@ -1057,7 +1057,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 			// Infection history for PID
 			Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
-					args);
+					new String[] {args[0]});
 			
 			int[] sample_time = new int[] { 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
 			

@@ -119,7 +119,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	public void print_event_count(int[] incl_start_grps, int[] sample_time, int[][] event_incl_criteria,
 			String[] target_files) throws IOException {
 
-		File output_dir = new File(basedir, "Event_Count");
+		File output_dir = new File(basedir, "InfectHist_Event_Count");
 		output_dir.mkdirs();
 
 		PrintWriter[] pWri = new PrintWriter[target_files.length];
@@ -366,7 +366,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 			double[] event_prob_by_inf_count, int[] inf_count_range, int[] incl_age_range, String target_file)
 			throws IOException {
 
-		File output_dir = new File(basedir, "Event_Probability");
+		File output_dir = new File(basedir, "InfectHist_Event_Probability");
 		output_dir.mkdirs();
 
 		PrintWriter pWri = new PrintWriter(new FileWriter(new File(output_dir, target_file)));
