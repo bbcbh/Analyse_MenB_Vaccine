@@ -15,6 +15,8 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import person.AbstractIndividualInterface;
+import sim.Runnable_MetaPopulation_MultiTransmission;
 import sim.Simulation_ClusterModelTransmission;
 import util.StaticMethods;
 
@@ -85,7 +87,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 		boolean flag_check_completeness = true; // 1
 		boolean flag_extract_timetrend = true; // 2
 		boolean flag_grp_region_extract = true; // 4
-		boolean flag_infection_hist_pid = true; // 8
+		boolean flag_infection_hist = true; // 8
 
 		boolean flag_printProgress = false;
 		boolean keepGrpRegionCSVs = false;
@@ -96,7 +98,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 				flag_check_completeness = ((1 << 0 & flag) != 0);
 				flag_extract_timetrend = ((1 << 1 & flag) != 0);
 				flag_grp_region_extract = ((1 << 2 & flag) != 0);
-				flag_infection_hist_pid = ((1 << 3 & flag) != 0);
+				flag_infection_hist = ((1 << 3 & flag) != 0);
 			}
 			if (args[i].startsWith("-keepGrpRegionCSV=")) {
 				keepGrpRegionCSVs = Boolean.valueOf(args[i].substring("-flag=".length()));
@@ -1051,28 +1053,93 @@ public class Analysis_PostSim_ExtractTimeTrends {
 						output_map);
 			}
 		}
-		if (flag_infection_hist_pid) {
+		if (flag_infection_hist) {
 
 			// Infection history for PID
 			Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
 					args);
+			
+			int[] sample_time = new int[] { 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
+			
+			// Incidence 
+			int[] incid_incl_start_grps = new int[] { 0, 5, 10, 15 }; // Age 14-19
+			int[][] incid_incl_criteria = new int[][] {
+					new int[] {1<<0, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_NATURAL_RECOVERY },
+					new int[] { 1<<0, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_TREATMENT },
+					new int[] {1<<5, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_NATURAL_RECOVERY },
+					new int[] {1<< 5, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_TREATMENT },
+					new int[] { 1<<10, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_NATURAL_RECOVERY },
+					new int[] {1<< 10, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_TREATMENT },
+					new int[] { 1<<15, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_NATURAL_RECOVERY },
+					new int[] {1<< 15, Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_AGE_RANGE, 0,
+							20 * AbstractIndividualInterface.ONE_YEAR_INT,
+							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
+							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_TREATMENT },
+			};
+			
+			String[] incid_filenames = new String[] {
+					"Infection_Hist_Incidence_Count_MI_14_19_Untreated.csv",
+					"Infection_Hist_Incidence_Count_MI_14_19_Treated.csv",
+					"Infection_Hist_Incidence_Count_FI_14_19_Untreated.csv",
+					"Infection_Hist_Incidence_Count_FI_14_19_Treated.csv",
+					"Infection_Hist_Incidence_Count_MN_14_19_Untreated.csv",
+					"Infection_Hist_Incidence_Count_MN_14_19_Treated.csv",
+					"Infection_Hist_Incidence_Count_FN_14_19_Unteated.csv",
+					"Infection_Hist_Incidence_Count_FN_14_19_Treated.csv",
+			};						
+			
+			analyseInfHist.print_event_count(incid_incl_start_grps,	sample_time, incid_incl_criteria, incid_filenames);										
+			
 
 			// PID
-			int[] incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female
-			int[] sample_time = new int[] { 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585, 10950 };
+			int[] pid_incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female			
+			int pid_max_exposure = 120; // Assume won't develop PID after 4 months
+			double[] pid_event_prob_by_inf_count = new double[] { 0.14, 0.17 };
+			int[] pid_inf_count_range = new int[] { 0, 1 };
+			
+			
+			analyseInfHist.print_single_event_probability(pid_incl_start_grps, sample_time, 					
+					pid_max_exposure, pid_event_prob_by_inf_count, pid_inf_count_range, null, "Infection_Hist_PID_FI_Any.csv");
+			
+			analyseInfHist.print_single_event_probability(pid_incl_start_grps, sample_time, 					
+					pid_max_exposure, pid_event_prob_by_inf_count, pid_inf_count_range, new int[]
+							{25*AbstractIndividualInterface.ONE_YEAR_INT, Integer.MAX_VALUE}, "Infection_Hist_PID_FI_Age25Plus.csv");
+			
+			
 
-			int max_exposure = 120; // Assume won't develop PID after 4 months
-			double[] event_prob_by_inf_count = new double[] { 0.14, 0.17 };
-			int[] inf_count_range = new int[] { 0, 1 };
-
-			HashMap<String, double[]> resmap = analyseInfHist.analyse(incl_start_grps, sample_time, max_exposure,
-					event_prob_by_inf_count, inf_count_range);
-
-			if (!resmap.isEmpty()) {
-				File baseDir = new File(args[0]);
-				File resFile = new File(baseDir, "Infection_Hist_PID.csv");
-				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);
-			}
+//			HashMap<String, double[]> resmap = analyseInfHist.event_probability(incl_start_grps, sample_time, max_exposure,
+//					event_prob_by_inf_count, inf_count_range);
+//
+//			if (!resmap.isEmpty()) {
+//				File baseDir = new File(args[0]);
+//				File resFile = new File(baseDir, "Infection_Hist_PID.csv");
+//				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);
+//			}
+			
+			
+			
+			
 
 		}
 	}
