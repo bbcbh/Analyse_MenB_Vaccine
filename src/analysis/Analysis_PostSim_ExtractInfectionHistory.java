@@ -63,6 +63,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	// FORMAT - int[] {Grp to be include, INCLUE_KEY .... }
 	public static final int INCLUDE_KEY_AGE_RANGE = 0;
 	public static final int INCLUDE_KEY_TREATMENT_OUTCOME = 1;
+	public static final int INCLUDE_KEY_RPT_COUNT = 2;
 
 	/**
 	 * 
@@ -191,9 +192,14 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 												toIncl &= row[inf_pt + 2] == include_criteria[testPt + 1];
 											} else {
 												// Censored - hence assume untreated
-												toIncl = include_criteria[testPt
+												toIncl &= include_criteria[testPt
 														+ 1] == Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_NATURAL_RECOVERY;
 											}
+											testPt += 2;
+											break;
+										case INCLUDE_KEY_RPT_COUNT:
+											int min_infection_pt = 2 + 3 * include_criteria[testPt + 1];
+											toIncl &= inf_pt >= min_infection_pt;
 											testPt += 2;
 											break;
 										default:
@@ -235,132 +241,132 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 	}
 
-	/**
-	 * @deprecated use print_single_event_probability instead
-	 */
-	public HashMap<String, double[]> event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure,
-			double[] event_prob_by_inf_count, int[] inf_count_range) throws IOException {
-		loadInfHistMap(incl_start_grps);
-
-		HashMap<String, double[]> map_event_prob_by_file = new HashMap<>();
-
-		for (Entry<String, ArrayList<int[]>> ent : map_infhist_lines.entrySet()) {
-			Matcher m_map_infhist = infect_hist_key.matcher(ent.getKey());
-			if (m_map_infhist.matches()) {
-				Long cMap = Long.valueOf(m_map_infhist.group(3));
-				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				double[] event_prob_sum = new double[sample_time.length];
-				map_event_prob_by_file.put(ent.getKey(), event_prob_sum);
-
-				ArrayList<int[]> inf_hist_rows = ent.getValue();
-
-				for (int r = 0; r < inf_hist_rows.size(); r++) {
-					int[] row = inf_hist_rows.get(r);
-					Integer id = row[0];
-					int[] indiv_ent = indivMap.get(id);
-					int start_grp = indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
-					if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
-						HashMap<Integer, ArrayList<Double>> map_cumul_prob_by_window_pt = new HashMap<>();
-
-						int inf_count = 0;
-						for (int inf_pt = 2; inf_pt < row.length; inf_pt += 3) { //
-							int exposure_start = row[inf_pt];
-							// Stop checking if inf start after sample period
-							if (exposure_start >= sample_time[sample_time.length - 1]) {
-								break;
-							}
-							int exposure_end = exposure_start + max_exposure;
-							// For case where individual leave population before recovery
-							if (inf_pt + 1 >= row.length) {
-								exposure_end = Math.min(exposure_end,
-										indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT]);
-							} else {
-								exposure_end = Math.min(exposure_end, row[inf_pt + 1]);
-							}
-
-							if (exposure_end > sample_time[0]) {
-								int sample_end_point = Arrays.binarySearch(sample_time,
-										Math.min(exposure_end, sample_time[sample_time.length - 1]));
-								if (sample_end_point < 0) {
-									sample_end_point = ~sample_end_point;
-								}
-								int sample_start_point = Arrays.binarySearch(sample_time,
-										Math.max(sample_time[0], exposure_start));
-								if (sample_start_point < 0) {
-									sample_start_point = ~sample_start_point;
-								}
-
-								// # past infection
-								int event_count_pt = Arrays.binarySearch(inf_count_range, inf_count);
-								if (event_count_pt < 0) {
-									event_count_pt = ~event_count_pt;
-								}
-
-								int current_window_pt = sample_start_point;
-
-								while (current_window_pt <= sample_end_point) {
-									if (current_window_pt > 0) {
-										double current_event_prob = event_prob_by_inf_count[Math
-												.min(event_prob_by_inf_count.length - 1, event_count_pt)];
-										// P(0), P(1) etc... within current window
-										ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt
-												.get(current_window_pt);
-										if (cumul_prob == null) {
-											cumul_prob = new ArrayList<>();
-											map_cumul_prob_by_window_pt.put(current_window_pt, cumul_prob);
-											cumul_prob.add(Double.valueOf(1)); // P(0) = 1
-										}
-
-										int exposure_start_adj = Math.max(exposure_start,
-												sample_time[current_window_pt - 1]);
-										int exposure_end_adj = Math.min(exposure_end, sample_time[current_window_pt]);
-
-										if (exposure_end_adj - exposure_start_adj < max_exposure) {
-											double pDayExp = 1
-													- Math.exp(Math.log(1 - current_event_prob) / max_exposure);
-											current_event_prob = 1
-													- Math.pow(1 - pDayExp, exposure_end_adj - exposure_start_adj);
-										}
-
-										// Update cumul_prod
-										cumul_prob.add(cumul_prob.get(cumul_prob.size() - 1) * current_event_prob);
-										for (int pI = cumul_prob.size() - 2; pI >= 1; pI--) {
-											cumul_prob.set(pI, cumul_prob.get(pI) * (1 - current_event_prob)
-													+ cumul_prob.get(pI - 1) * current_event_prob);
-										}
-										cumul_prob.set(0, cumul_prob.get(0) * (1 - current_event_prob));
-									}
-									current_window_pt++;
-
-								}
-							}
-							inf_count++;
-						}
-
-						if (!map_cumul_prob_by_window_pt.isEmpty()) {
-							Integer[] window_pts_array = map_cumul_prob_by_window_pt.keySet().toArray(new Integer[0]);
-							Arrays.sort(window_pts_array);
-
-							for (int wPt : window_pts_array) {
-								ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt.get(wPt);
-								if (cumul_prob.size() > 1) {
-									// Update event_prob_sum
-									double weighted_mean = 0;
-									for (int i = 1; i < cumul_prob.size(); i++) {
-										weighted_mean += i * cumul_prob.get(i);
-									}
-									event_prob_sum[wPt] += weighted_mean;
-								}
-							}
-						}
-
-					} // End of if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
-
-				} // End of for (int r = 1; r < inf_hist_rows.size(); r++) {
-			}
-		}
-		return map_event_prob_by_file;
-	}
+//	/**
+//	 * @deprecated use print_single_event_probability instead
+//	 */
+//	public HashMap<String, double[]> event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure,
+//			double[] event_prob_by_inf_count, int[] inf_count_range) throws IOException {
+//		loadInfHistMap(incl_start_grps);
+//
+//		HashMap<String, double[]> map_event_prob_by_file = new HashMap<>();
+//
+//		for (Entry<String, ArrayList<int[]>> ent : map_infhist_lines.entrySet()) {
+//			Matcher m_map_infhist = infect_hist_key.matcher(ent.getKey());
+//			if (m_map_infhist.matches()) {
+//				Long cMap = Long.valueOf(m_map_infhist.group(3));
+//				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+//				double[] event_prob_sum = new double[sample_time.length];
+//				map_event_prob_by_file.put(ent.getKey(), event_prob_sum);
+//
+//				ArrayList<int[]> inf_hist_rows = ent.getValue();
+//
+//				for (int r = 0; r < inf_hist_rows.size(); r++) {
+//					int[] row = inf_hist_rows.get(r);
+//					Integer id = row[0];
+//					int[] indiv_ent = indivMap.get(id);
+//					int start_grp = indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+//					if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+//						HashMap<Integer, ArrayList<Double>> map_cumul_prob_by_window_pt = new HashMap<>();
+//
+//						int inf_count = 0;
+//						for (int inf_pt = 2; inf_pt < row.length; inf_pt += 3) { //
+//							int exposure_start = row[inf_pt];
+//							// Stop checking if inf start after sample period
+//							if (exposure_start >= sample_time[sample_time.length - 1]) {
+//								break;
+//							}
+//							int exposure_end = exposure_start + max_exposure;
+//							// For case where individual leave population before recovery
+//							if (inf_pt + 1 >= row.length) {
+//								exposure_end = Math.min(exposure_end,
+//										indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT]);
+//							} else {
+//								exposure_end = Math.min(exposure_end, row[inf_pt + 1]);
+//							}
+//
+//							if (exposure_end > sample_time[0]) {
+//								int sample_end_point = Arrays.binarySearch(sample_time,
+//										Math.min(exposure_end, sample_time[sample_time.length - 1]));
+//								if (sample_end_point < 0) {
+//									sample_end_point = ~sample_end_point;
+//								}
+//								int sample_start_point = Arrays.binarySearch(sample_time,
+//										Math.max(sample_time[0], exposure_start));
+//								if (sample_start_point < 0) {
+//									sample_start_point = ~sample_start_point;
+//								}
+//
+//								// # past infection
+//								int event_count_pt = Arrays.binarySearch(inf_count_range, inf_count);
+//								if (event_count_pt < 0) {
+//									event_count_pt = ~event_count_pt;
+//								}
+//
+//								int current_window_pt = sample_start_point;
+//
+//								while (current_window_pt <= sample_end_point) {
+//									if (current_window_pt > 0) {
+//										double current_event_prob = event_prob_by_inf_count[Math
+//												.min(event_prob_by_inf_count.length - 1, event_count_pt)];
+//										// P(0), P(1) etc... within current window
+//										ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt
+//												.get(current_window_pt);
+//										if (cumul_prob == null) {
+//											cumul_prob = new ArrayList<>();
+//											map_cumul_prob_by_window_pt.put(current_window_pt, cumul_prob);
+//											cumul_prob.add(Double.valueOf(1)); // P(0) = 1
+//										}
+//
+//										int exposure_start_adj = Math.max(exposure_start,
+//												sample_time[current_window_pt - 1]);
+//										int exposure_end_adj = Math.min(exposure_end, sample_time[current_window_pt]);
+//
+//										if (exposure_end_adj - exposure_start_adj < max_exposure) {
+//											double pDayExp = 1
+//													- Math.exp(Math.log(1 - current_event_prob) / max_exposure);
+//											current_event_prob = 1
+//													- Math.pow(1 - pDayExp, exposure_end_adj - exposure_start_adj);
+//										}
+//
+//										// Update cumul_prod
+//										cumul_prob.add(cumul_prob.get(cumul_prob.size() - 1) * current_event_prob);
+//										for (int pI = cumul_prob.size() - 2; pI >= 1; pI--) {
+//											cumul_prob.set(pI, cumul_prob.get(pI) * (1 - current_event_prob)
+//													+ cumul_prob.get(pI - 1) * current_event_prob);
+//										}
+//										cumul_prob.set(0, cumul_prob.get(0) * (1 - current_event_prob));
+//									}
+//									current_window_pt++;
+//
+//								}
+//							}
+//							inf_count++;
+//						}
+//
+//						if (!map_cumul_prob_by_window_pt.isEmpty()) {
+//							Integer[] window_pts_array = map_cumul_prob_by_window_pt.keySet().toArray(new Integer[0]);
+//							Arrays.sort(window_pts_array);
+//
+//							for (int wPt : window_pts_array) {
+//								ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt.get(wPt);
+//								if (cumul_prob.size() > 1) {
+//									// Update event_prob_sum
+//									double weighted_mean = 0;
+//									for (int i = 1; i < cumul_prob.size(); i++) {
+//										weighted_mean += i * cumul_prob.get(i);
+//									}
+//									event_prob_sum[wPt] += weighted_mean;
+//								}
+//							}
+//						}
+//
+//					} // End of if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+//
+//				} // End of for (int r = 1; r < inf_hist_rows.size(); r++) {
+//			}
+//		}
+//		return map_event_prob_by_file;
+//	}
 
 	public void print_single_event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure,
 			double[] event_prob_by_inf_count, int[] inf_count_range, int[] incl_age_range, String target_file)
@@ -513,7 +519,6 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 					pWri.print(event_prob_sum[t]);
 				}
 				pWri.flush();
-				pWri.close();
 			}
 		}
 
@@ -591,7 +596,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
 													.parseInt(lineEnt[5]);
 										}
-										
+
 										System.out.printf("Popstat from %s loaded.\n", demo_dir.getAbsolutePath());
 									}
 
