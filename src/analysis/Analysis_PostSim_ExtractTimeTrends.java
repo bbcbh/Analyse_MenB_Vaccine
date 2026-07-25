@@ -1059,7 +1059,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 			Analysis_PostSim_ExtractInfectionHistory analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(
 					new String[] { args[0] });
 
-			int[] sample_time = new int[] { 6030, 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585,
+			int[] sample_time = new int[] { 6570, 6935, 7300, 7665, 8030, 8395, 8760, 9125, 9490, 9855, 10220, 10585,
 					10950 };
 
 			// Incidence
@@ -1173,15 +1173,6 @@ public class Analysis_PostSim_ExtractTimeTrends {
 					pid_event_prob_by_inf_count, pid_inf_count_range,
 					new int[] { 25 * AbstractIndividualInterface.ONE_YEAR_INT, Integer.MAX_VALUE },
 					"Infection_Hist_PID_FI_Age25Plus.csv");
-
-//			HashMap<String, double[]> resmap = analyseInfHist.event_probability(incl_start_grps, sample_time, max_exposure,
-//					event_prob_by_inf_count, inf_count_range);
-//
-//			if (!resmap.isEmpty()) {
-//				File baseDir = new File(args[0]);
-//				File resFile = new File(baseDir, "Infection_Hist_PID.csv");
-//				Analysis_PostSim_ExtractInfectionHistory.generateInfectionHistCSV(resmap, sample_time, resFile);
-//			}
 
 		}
 	}
