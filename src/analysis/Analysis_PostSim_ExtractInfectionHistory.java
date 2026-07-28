@@ -518,6 +518,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 					pWri.print(',');
 					pWri.print(event_prob_sum[t]);
 				}
+				pWri.println();
 				pWri.flush();
 			}
 		}
