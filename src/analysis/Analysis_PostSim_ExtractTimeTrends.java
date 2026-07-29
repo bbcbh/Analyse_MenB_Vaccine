@@ -1151,20 +1151,32 @@ public class Analysis_PostSim_ExtractTimeTrends {
 							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_TREATMENT_OUTCOME,
 							Runnable_MetaPopulation_MultiTransmission.INFECTION_HIST_CLEAR_TREATMENT,
 							Analysis_PostSim_ExtractInfectionHistory.INCLUDE_KEY_RPT_COUNT, 1 }, };
-				
-		   String[] rep_incid_filenames = new String[incid_filenames.length];
-		   for(int i = 0; i < rep_incid_filenames.length; i++) {
-			   rep_incid_filenames[i] = String.format("Rpt_%s", incid_filenames[i]);
-		   }																												
-		   analyseInfHist.print_event_count(incid_incl_start_grps, sample_time, rpt_incid_incl_criteria, rep_incid_filenames);
-							
-							
 
-			// PID
+			String[] rep_incid_filenames = new String[incid_filenames.length];
+			for (int i = 0; i < rep_incid_filenames.length; i++) {
+				rep_incid_filenames[i] = String.format("Rpt_%s", incid_filenames[i]);
+			}
+			analyseInfHist.print_event_count(incid_incl_start_grps, sample_time, rpt_incid_incl_criteria,
+					rep_incid_filenames);
+
+			// PID for all FI
 			int[] pid_incl_start_grps = new int[] { 5, 6, 7, 8, 9 }; // Indigenous female
 			int pid_max_exposure = 120; // Assume won't develop PID after 4 months
 			double[] pid_event_prob_by_inf_count = new double[] { 0.14, 0.17 };
 			int[] pid_inf_count_range = new int[] { 0, 1 };
+
+			analyseInfHist = new Analysis_PostSim_ExtractInfectionHistory(new String[] { args[0] });
+
+			int[][] pid_incl_criteria = new int[][] { //
+					new int[] { 1 << 5 | 1 << 6 | 1 << 7 | 1 << 8 | 1 << 9 }, //
+					new int[] { 1 << 5 }, //
+			};
+			String[] pid_filenames = new String[] { //
+					"Incidence_Count_FI.csv", //
+					"Incidence_Count_FI_14_19.csv", //
+			};
+
+			analyseInfHist.print_event_count(pid_incl_start_grps, sample_time, pid_incl_criteria, pid_filenames);
 
 			analyseInfHist.print_single_event_probability(pid_incl_start_grps, sample_time, pid_max_exposure,
 					pid_event_prob_by_inf_count, pid_inf_count_range, null, "Infection_Hist_PID_FI_Any.csv");
