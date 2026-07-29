@@ -499,7 +499,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 										int age = sample_time[wPt]
 												- indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT];
 										age += indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE];
-										toIncl &= age >= incl_age_range[0] && age < incl_age_range[1];
+										toIncl = age >= incl_age_range[0] && age < incl_age_range[1];
 									}
 									if (toIncl) {
 										event_prob_sum[wPt] += weighted_mean;
