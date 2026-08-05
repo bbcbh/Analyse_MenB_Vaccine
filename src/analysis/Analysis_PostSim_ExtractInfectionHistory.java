@@ -1,5 +1,6 @@
 package analysis;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
@@ -7,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -632,12 +634,12 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 										break;
 									}
 									offset += readLen;
-								}
+								}							
 
-								String[] lines = new String(content).split("\\n");
-
-								for (int i = 1; i < lines.length; i++) {
-									String line = lines[i];
+								BufferedReader lines = new BufferedReader(new StringReader(new String(content)));								
+								lines.readLine(); // Skip header								
+								String line;
+								while((line = lines.readLine())!= null) {									
 									String[] lineEnt = line.split(",");
 									int[] val = new int[lineEnt.length];
 									for (int c = 0; c < val.length; c++) {
@@ -657,6 +659,8 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 									}
 
 								}
+								
+								lines.close();
 
 							} else {
 								System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
@@ -768,10 +772,13 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 									}
 
 									ArrayList<int[]> lines_split = new ArrayList<>();
-									String[] lines = new String(content).split("\\n");
-
-									for (int i = 1; i < lines.length; i++) {
-										String line = lines[i];
+									
+									BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
+									
+									lines.readLine(); // Skip first line
+									
+									String line;
+									while ((line = lines.readLine())!= null) {										
 										String[] lineEnt = line.split(",");
 										int[] val = new int[lineEnt.length];
 										for (int c = 0; c < val.length; c++) {
