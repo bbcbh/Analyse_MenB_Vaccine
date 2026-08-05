@@ -17,8 +17,6 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import person.AbstractIndividualInterface;
-import sim.Runnable_MetaPopulation_MultiTransmission;
 import sim.Simulation_ClusterModelTransmission;
 import util.StaticMethods;
 
