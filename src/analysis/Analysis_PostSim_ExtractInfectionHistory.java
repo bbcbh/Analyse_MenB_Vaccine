@@ -42,7 +42,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	private ArrayList<Integer> incl_start_grps_rec = new ArrayList<>();
 
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
-	private HashMap<String, HashMap<Integer, int[]>> map_vacc_hist; // Key = CMAP_SEED,SIM_SEED
+	private HashMap<Long, HashMap<Long, HashMap<Integer, int[]>>> map_vacc_hist; // Key = CMAP_SEED,SIM_SEED
 	private HashMap<String, ArrayList<int[]>> map_infhist_lines;
 
 	private File cMap_dir_overwrite = null;
@@ -68,16 +68,18 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	};
 
 	// FORMAT - int[] {Grp to be include, INCLUE_KEY_SET, .... }
-	
-	// INCLUE_KEY_SET = INCLUDE_KEY_AGE_RANGE, minAge, maxAge
-	public static final int INCLUDE_KEY_AGE_RANGE = 0; 
-	// INCLUE_KEY_SET = INCLUDE_KEY_TREATMENT_OUTCOME, treatment_outcome_type	
-	public static final int INCLUDE_KEY_TREATMENT_OUTCOME = INCLUDE_KEY_AGE_RANGE + 1; 
-	// INCLUE_KEY_SET = INCLUDE_KEY_RPT_COUNT,  min_infection, max_infection (exclusive, or set it < min_infection for unlimited)
-	public static final int INCLUDE_KEY_RPT_COUNT = INCLUDE_KEY_TREATMENT_OUTCOME + 1; 
-	// INCLUE_KEY_SET =  INCLUDE_KEY_VACCINATION_STAT, -1 (never), 0 = ever, or withinlastVaccination
 
-	public static final int INCLUDE_KEY_VACCINATION_STAT = INCLUDE_KEY_RPT_COUNT + 1; 
+	// INCLUE_KEY_SET = INCLUDE_KEY_AGE_RANGE, minAge, maxAge
+	public static final int INCLUDE_KEY_AGE_RANGE = 0;
+	// INCLUE_KEY_SET = INCLUDE_KEY_TREATMENT_OUTCOME, treatment_outcome_type
+	public static final int INCLUDE_KEY_TREATMENT_OUTCOME = INCLUDE_KEY_AGE_RANGE + 1;
+	// INCLUE_KEY_SET = INCLUDE_KEY_RPT_COUNT, min_infection, max_infection
+	// (exclusive, or set it < min_infection for unlimited)
+	public static final int INCLUDE_KEY_RPT_COUNT = INCLUDE_KEY_TREATMENT_OUTCOME + 1;
+	// INCLUE_KEY_SET = INCLUDE_KEY_VACCINATION_STAT, -1 (never), 0 = ever, or
+	// withinlastVaccination
+
+	public static final int INCLUDE_KEY_VACCINATION_STAT = INCLUDE_KEY_RPT_COUNT + 1;
 	// Shared
 	public static final String EXTRACT_INFHIST_TYPE_EVENT_COUNT = "EXTRACT_INFHIST_TYPE_EVENT_COUNT";
 	public static final String EXTRACT_INFHIST_TYPE_INDIV_COUNT = "EXTRACT_INFHIST_TYPE_INDIV_COUNT";
@@ -188,7 +190,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				Long simSeed = Long.valueOf(m_map_infhist.group(4));
 
 				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(String.format("%d,%d", cMap, simSeed));
+				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(cMap).get(simSeed);
 
 				double[][] indiv_count_all = new double[event_incl_criteria.length][sample_time.length];
 
@@ -293,7 +295,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				Long cMap = Long.valueOf(m_map_infhist.group(3));
 				Long simSeed = Long.valueOf(m_map_infhist.group(4));
 				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(String.format("%d,%d", cMap, simSeed));
+				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(cMap).get(simSeed);
 
 				double[][] event_count_all = new double[event_incl_criteria.length][sample_time.length];
 				ArrayList<int[]> inf_hist_rows = map_infhist_lines.get(ent_key);
@@ -390,12 +392,12 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 					testPt += 2;
 					break;
 				case INCLUDE_KEY_RPT_COUNT:
-					int min_infection_pt = 2 + 3 * include_criteria[testPt + 1];					
+					int min_infection_pt = 2 + 3 * include_criteria[testPt + 1];
 					toIncl &= inf_hist_pt >= min_infection_pt;
-					if(include_criteria[testPt + 2] > include_criteria[testPt + 1]) {					
+					if (include_criteria[testPt + 2] > include_criteria[testPt + 1]) {
 						int max_infection_pt = 2 + 3 * include_criteria[testPt + 2];
 						toIncl &= inf_hist_pt < max_infection_pt;
-					}										
+					}
 					testPt += 3;
 					break;
 				case INCLUDE_KEY_VACCINATION_STAT:
@@ -588,7 +590,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 	}
 
-	private void loadVaccHistMap(int[] incl_start_grps) throws IOException {		
+	private void loadVaccHistMap(int[] incl_start_grps) throws IOException {
 
 		for (File res_dir : res_dirs) {
 			File[] file_vacc_hist_7z = res_dir.listFiles(new FileFilter() {
@@ -615,12 +617,18 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 								Long cMap = Long.valueOf(m_map_vacchist.group(3));
 								Long simSeed = Long.valueOf(m_map_vacchist.group(4));
 
-								String vaccMapKey = String.format("%d,%d", cMap, simSeed);
-								HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(vaccMapKey);
+								HashMap<Long, HashMap<Integer, int[]>> vaccMapByCMap = map_vacc_hist.get(cMap);
+
+								if (vaccMapByCMap == null) {
+									vaccMapByCMap = new HashMap<>();
+									map_vacc_hist.put(cMap, vaccMapByCMap);
+								}
+
+								HashMap<Integer, int[]> vaccMap = vaccMapByCMap.get(simSeed);
 
 								if (vaccMap == null) {
 									vaccMap = new HashMap<>();
-									map_vacc_hist.put(vaccMapKey, vaccMap);
+									vaccMapByCMap.put(simSeed, vaccMap);
 								}
 
 								// Load all line
@@ -634,12 +642,12 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 										break;
 									}
 									offset += readLen;
-								}							
+								}
 
-								BufferedReader lines = new BufferedReader(new StringReader(new String(content)));								
-								lines.readLine(); // Skip header								
+								BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
+								lines.readLine(); // Skip header
 								String line;
-								while((line = lines.readLine())!= null) {									
+								while ((line = lines.readLine()) != null) {
 									String[] lineEnt = line.split(",");
 									int[] val = new int[lineEnt.length];
 									for (int c = 0; c < val.length; c++) {
@@ -659,7 +667,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 									}
 
 								}
-								
+
 								lines.close();
 
 							} else {
@@ -704,10 +712,9 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				});
 
 				for (File zip : file_infhist_7z) {
-					
+
 					System.out.printf("Loading Infection History from %s.\n", zip.getAbsolutePath());
-					
-					
+
 					// map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip,
 					// map_infhist_lines, null);
 					SevenZArchiveEntry inputEnt;
@@ -772,13 +779,13 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 									}
 
 									ArrayList<int[]> lines_split = new ArrayList<>();
-									
+
 									BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
-									
+
 									lines.readLine(); // Skip first line
-									
+
 									String line;
-									while ((line = lines.readLine())!= null) {										
+									while ((line = lines.readLine()) != null) {
 										String[] lineEnt = line.split(",");
 										int[] val = new int[lineEnt.length];
 										for (int c = 0; c < val.length; c++) {
@@ -812,12 +819,10 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 						e.printStackTrace(System.err);
 					}
 				}
-				
-				
-			}						
+
+			}
 			loadVaccHistMap(check_incl_start_grps);
 		}
-		
 
 	}
 
