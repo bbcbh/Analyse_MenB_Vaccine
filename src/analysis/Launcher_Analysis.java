@@ -9,7 +9,7 @@ public class Launcher_Analysis {
 
 	public static void main(String[] args) throws IOException {
 	
-		String usageInfo = "Usage: java -jar Analyse_MenB_Vaccine.jar BASEDIR_SIM PATH_REGION_MAPPING PATH_GRP_SIZE <-flag=BINARY_FLAG_OPTIONS> <-printProgress=TF>"
+		String usageInfo = "Usage: java -jar Analyse_MenB_Vaccine.jar BASEDIR_SIM PATH_REGION_MAPPING PATH_GRP_SIZE <-flag=BINARY_FLAG_OPTIONS> <-printProgress=TF> <-infHistAnalysisProp=FILENAME>"
 				+ "\n  or java -jar Analyse_MenB_Vaccine.jar -opt BASEDIR_SIM SEED_DIR_NAME <-printProgress=TF> <-optType=OPT_TYPE>"
 				+ "\n  or java -jar Analyse_MenB_Vaccine.jar -optBestFit BASEDIR_SIM CSV_FOLDER_NAME";
 	
