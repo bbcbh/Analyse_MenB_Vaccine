@@ -42,8 +42,10 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	private ArrayList<Integer> incl_start_grps_rec = new ArrayList<>();
 
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
-	private HashMap<Long, HashMap<Long, HashMap<Integer, int[]>>> map_vacc_hist; // Key = CMAP_SEED,SIM_SEED
+	// private HashMap<Long, HashMap<Long, HashMap<Integer, int[]>>> map_vacc_hist;
+	// // Key = CMAP_SEED,SIM_SEED
 	private HashMap<String, ArrayList<int[]>> map_infhist_lines;
+	private HashMap<Long, HashMap<Long, File>> map_infhist_dir; // Key = CMAP_SEED,SIM_SEED
 
 	private File cMap_dir_overwrite = null;
 
@@ -155,7 +157,8 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		// From Runnable_MetaPopulation_MultiTransmission
 		map_indiv_stat = new HashMap<>();
 		map_infhist_lines = new HashMap<>();
-		map_vacc_hist = new HashMap<>();
+		// map_vacc_hist = new HashMap<>();
+		map_infhist_dir = new HashMap<>();
 
 	}
 
@@ -183,14 +186,24 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 		int[] last_sample_start_point = new int[event_incl_criteria.length];
 
+		HashMap<String, HashMap<Integer, int[]>> vaccMapByDir = new HashMap<>();
+		File lastVaccineDir = null;
+
 		for (String ent_key : zip_ent_key) {
 			Matcher m_map_infhist = infect_hist_key.matcher(ent_key);
 			if (m_map_infhist.matches()) {
 				Long cMap = Long.valueOf(m_map_infhist.group(3));
 				Long simSeed = Long.valueOf(m_map_infhist.group(4));
 
+				File resDir = map_infhist_dir.get(cMap).get(simSeed);
+				if (!resDir.equals(lastVaccineDir)) {
+					vaccMapByDir.clear(); // Clear the old one
+					vaccMapByDir = loadVaccHistMap_by_simDir(vaccMapByDir, incl_start_grps, resDir);
+					lastVaccineDir = resDir;
+				}
+
 				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(cMap).get(simSeed);
+				HashMap<Integer, int[]> vaccMap = vaccMapByDir.get(String.format("%d_%d", cMap, simSeed));
 
 				double[][] indiv_count_all = new double[event_incl_criteria.length][sample_time.length];
 
@@ -285,17 +298,28 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		}
 
 		loadInfHistMap(incl_start_grps);
-
 		String[] zip_ent_key = map_infhist_lines.keySet().toArray(new String[0]);
 		Arrays.sort(zip_ent_key, cmp_zipEnt);
+
+		HashMap<String, HashMap<Integer, int[]>> vaccMapByDir = new HashMap<>();
+		File lastVaccineDir = null;
 
 		for (String ent_key : zip_ent_key) {
 			Matcher m_map_infhist = infect_hist_key.matcher(ent_key);
 			if (m_map_infhist.matches()) {
 				Long cMap = Long.valueOf(m_map_infhist.group(3));
 				Long simSeed = Long.valueOf(m_map_infhist.group(4));
+				
+				File resDir = map_infhist_dir.get(cMap).get(simSeed);
+				if (!resDir.equals(lastVaccineDir)) {
+					vaccMapByDir.clear(); // Clear the old one
+					vaccMapByDir = loadVaccHistMap_by_simDir(vaccMapByDir, incl_start_grps, resDir);
+					lastVaccineDir = resDir;
+				}
+
 				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-				HashMap<Integer, int[]> vaccMap = map_vacc_hist.get(cMap).get(simSeed);
+				HashMap<Integer, int[]> vaccMap = vaccMapByDir.get(String.format("%d_%d", cMap, simSeed));
+
 
 				double[][] event_count_all = new double[event_incl_criteria.length][sample_time.length];
 				ArrayList<int[]> inf_hist_rows = map_infhist_lines.get(ent_key);
@@ -590,103 +614,199 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 	}
 
-	private void loadVaccHistMap(int[] incl_start_grps) throws IOException {
+	private HashMap<String, HashMap<Integer, int[]>> loadVaccHistMap_by_simDir(
+			HashMap<String, HashMap<Integer, int[]>> vaccMapByCMap, int[] incl_start_grps, File res_dir) {
 
-		for (File res_dir : res_dirs) {
-			File[] file_vacc_hist_7z = res_dir.listFiles(new FileFilter() {
-				@Override
-				public boolean accept(File pathname) {
-					return vacc_hist_7z_format.matcher(pathname.getName()).matches();
-				}
-			});
+		SevenZArchiveEntry inputEnt;
+		final int BUFFER = 2048;
 
-			for (File zip : file_vacc_hist_7z) {
-				System.out.printf("Loading Vaccintion History from %s.\n", zip.getAbsolutePath());
-				SevenZArchiveEntry inputEnt;
-				final int BUFFER = 2048;
-				try {
-					SevenZFile inputZip = new SevenZFile(zip);
-
-					while ((inputEnt = inputZip.getNextEntry()) != null) {
-						if (!inputEnt.isDirectory()) {
-							String entName = inputEnt.getName();
-							// Load map_indiv_stat for each map
-							Matcher m_map_vacchist = vacc_hist_key.matcher(entName);
-							if (m_map_vacchist.matches()) {
-
-								Long cMap = Long.valueOf(m_map_vacchist.group(3));
-								Long simSeed = Long.valueOf(m_map_vacchist.group(4));
-
-								HashMap<Long, HashMap<Integer, int[]>> vaccMapByCMap = map_vacc_hist.get(cMap);
-
-								if (vaccMapByCMap == null) {
-									vaccMapByCMap = new HashMap<>();
-									map_vacc_hist.put(cMap, vaccMapByCMap);
-								}
-
-								HashMap<Integer, int[]> vaccMap = vaccMapByCMap.get(simSeed);
-
-								if (vaccMap == null) {
-									vaccMap = new HashMap<>();
-									vaccMapByCMap.put(simSeed, vaccMap);
-								}
-
-								// Load all line
-								int size = (int) inputEnt.getSize();
-
-								byte[] content = new byte[size];
-								int offset = 0;
-								while (offset < size) {
-									int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
-									if (readLen < 0) {
-										break;
-									}
-									offset += readLen;
-								}
-
-								BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
-								lines.readLine(); // Skip header
-								String line;
-								while ((line = lines.readLine()) != null) {
-									String[] lineEnt = line.split(",");
-									int[] val = new int[lineEnt.length];
-									for (int c = 0; c < val.length; c++) {
-										val[c] = Integer.parseInt(lineEnt[c].strip());
-									}
-									Integer id = val[0];
-									if (incl_start_grps == null) {
-										vaccMap.put(id, val);
-									} else {
-										// Only load line with start_grp in incl_start_grps
-										HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-										int start_grp = indivMap
-												.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
-										if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
-											vaccMap.put(id, val);
-										}
-									}
-
-								}
-
-								lines.close();
-
-							} else {
-								System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
-							}
-
-						}
-					}
-					inputZip.close();
-				} catch (IOException e) {
-					System.err.printf("Error when reading zip file %s. Zip file ignored.\n", zip.getAbsolutePath());
-					e.printStackTrace(System.err);
-				}
-
+		File[] file_vacc_hist_7z = res_dir.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File pathname) {
+				return vacc_hist_7z_format.matcher(pathname.getName()).matches();
 			}
+		});
 
+		if (file_vacc_hist_7z.length > 0) {
+			System.out.printf("Loading vaccination map from %s\n", res_dir.getAbsolutePath());
 		}
 
+		for (File vaccZip : file_vacc_hist_7z) {
+			try {
+				SevenZFile inputZip = new SevenZFile(vaccZip);
+				while ((inputEnt = inputZip.getNextEntry()) != null) {
+					if (!inputEnt.isDirectory()) {
+						String entName = inputEnt.getName();
+						// Load map_indiv_stat for each map
+						Matcher m_map_vacchist = vacc_hist_key.matcher(entName);
+						if (m_map_vacchist.matches()) {
+							Long cMap = Long.valueOf(m_map_vacchist.group(3));
+							Long simSeed = Long.valueOf(m_map_vacchist.group(4));
+							String key = String.format("%d_%d", cMap, simSeed);
+
+							HashMap<Integer, int[]> vaccMap = vaccMapByCMap.get(key);
+
+							if (vaccMap == null) {
+								vaccMap = new HashMap<>();
+								vaccMapByCMap.put(key, vaccMap);
+							}
+
+							// Load all line
+							int size = (int) inputEnt.getSize();
+
+							byte[] content = new byte[size];
+							int offset = 0;
+							while (offset < size) {
+								int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
+								if (readLen < 0) {
+									break;
+								}
+								offset += readLen;
+							}
+
+							BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
+							lines.readLine(); // Skip header
+							String line;
+							while ((line = lines.readLine()) != null) {
+								String[] lineEnt = line.split(",");
+								int[] val = new int[lineEnt.length];
+								for (int c = 0; c < val.length; c++) {
+									val[c] = Integer.parseInt(lineEnt[c].strip());
+								}
+								Integer id = val[0];
+								if (incl_start_grps == null) {
+									vaccMap.put(id, val);
+								} else {
+									// Only load line with start_grp in incl_start_grps
+									HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+									int start_grp = indivMap
+											.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+									if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+										vaccMap.put(id, val);
+									}
+								}
+
+							}
+
+							lines.close();
+
+						} else {
+							System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
+						}
+					}
+
+				}
+
+				inputZip.close();
+
+			} catch (IOException ex) {
+				System.err.printf("Error when reading zip file %s. Zip file ignored.\n", vaccZip.getAbsolutePath());
+				ex.printStackTrace(System.err);
+			}
+		}
+
+		return vaccMapByCMap;
 	}
+
+//	private void loadVaccHistMap(int[] incl_start_grps) throws IOException {
+//
+//		for (File res_dir : res_dirs) {
+//			File[] file_vacc_hist_7z = res_dir.listFiles(new FileFilter() {
+//				@Override
+//				public boolean accept(File pathname) {
+//					return vacc_hist_7z_format.matcher(pathname.getName()).matches();
+//				}
+//			});
+//
+//			for (File zip : file_vacc_hist_7z) {
+//
+//				// System.out.printf("Loading Vaccintion History from %s.\n",
+//				// zip.getAbsolutePath());
+//				SevenZArchiveEntry inputEnt;
+//				final int BUFFER = 2048;
+//				try {
+//					SevenZFile inputZip = new SevenZFile(zip);
+//
+//					while ((inputEnt = inputZip.getNextEntry()) != null) {
+//						if (!inputEnt.isDirectory()) {
+//							String entName = inputEnt.getName();
+//							// Load map_indiv_stat for each map
+//							Matcher m_map_vacchist = vacc_hist_key.matcher(entName);
+//							if (m_map_vacchist.matches()) {
+//
+//								Long cMap = Long.valueOf(m_map_vacchist.group(3));
+//								Long simSeed = Long.valueOf(m_map_vacchist.group(4));
+//
+//								HashMap<Long, HashMap<Integer, int[]>> vaccMapByCMap = map_vacc_hist.get(cMap);
+//
+//								if (vaccMapByCMap == null) {
+//									vaccMapByCMap = new HashMap<>();
+//									map_vacc_hist.put(cMap, vaccMapByCMap);
+//								}
+//
+//								HashMap<Integer, int[]> vaccMap = vaccMapByCMap.get(simSeed);
+//
+//								if (vaccMap == null) {
+//									vaccMap = new HashMap<>();
+//									vaccMapByCMap.put(simSeed, vaccMap);
+//								}
+//
+//								// Load all line
+//								int size = (int) inputEnt.getSize();
+//
+//								byte[] content = new byte[size];
+//								int offset = 0;
+//								while (offset < size) {
+//									int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
+//									if (readLen < 0) {
+//										break;
+//									}
+//									offset += readLen;
+//								}
+//
+//								BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
+//								lines.readLine(); // Skip header
+//								String line;
+//								while ((line = lines.readLine()) != null) {
+//									String[] lineEnt = line.split(",");
+//									int[] val = new int[lineEnt.length];
+//									for (int c = 0; c < val.length; c++) {
+//										val[c] = Integer.parseInt(lineEnt[c].strip());
+//									}
+//									Integer id = val[0];
+//									if (incl_start_grps == null) {
+//										vaccMap.put(id, val);
+//									} else {
+//										// Only load line with start_grp in incl_start_grps
+//										HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+//										int start_grp = indivMap
+//												.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+//										if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+//											vaccMap.put(id, val);
+//										}
+//									}
+//
+//								}
+//
+//								lines.close();
+//
+//							} else {
+//								System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
+//							}
+//
+//						}
+//					}
+//					inputZip.close();
+//				} catch (IOException e) {
+//					System.err.printf("Error when reading zip file %s. Zip file ignored.\n", zip.getAbsolutePath());
+//					e.printStackTrace(System.err);
+//				}
+//
+//			}
+//
+//		}
+//
+//	}
 
 	private void loadInfHistMap(int[] check_incl_start_grps) throws IOException {
 		ArrayList<Integer> to_load_start_grp = new ArrayList<>();
@@ -713,7 +833,8 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 				for (File zip : file_infhist_7z) {
 
-					System.out.printf("Loading Infection History from %s.\n", zip.getAbsolutePath());
+					// System.out.printf("Loading Infection History from %s.\n",
+					// zip.getAbsolutePath());
 
 					// map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip,
 					// map_infhist_lines, null);
@@ -730,6 +851,14 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 								Matcher m_map_infhist = infect_hist_key.matcher(entName);
 								if (m_map_infhist.matches()) {
 									Long cMap = Long.valueOf(m_map_infhist.group(3));
+									Long simSeed = Long.valueOf(m_map_infhist.group(4));
+
+									HashMap<Long, File> ent_by_cMap = map_infhist_dir.get(cMap);
+									if (ent_by_cMap == null) {
+										ent_by_cMap = new HashMap<>();
+										map_infhist_dir.put(cMap, ent_by_cMap);
+									}
+									ent_by_cMap.put(simSeed, res_dir);
 
 									HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
 									if (indivMap == null) {
@@ -821,7 +950,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 				}
 
 			}
-			loadVaccHistMap(check_incl_start_grps);
+			// loadVaccHistMap(check_incl_start_grps);
 		}
 
 	}
