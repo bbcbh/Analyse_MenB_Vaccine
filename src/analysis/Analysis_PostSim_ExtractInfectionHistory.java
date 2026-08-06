@@ -42,8 +42,6 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	private ArrayList<Integer> incl_start_grps_rec = new ArrayList<>();
 
 	private HashMap<Long, HashMap<Integer, int[]>> map_indiv_stat;
-	// private HashMap<Long, HashMap<Long, HashMap<Integer, int[]>>> map_vacc_hist;
-	// // Key = CMAP_SEED,SIM_SEED
 	private HashMap<String, ArrayList<int[]>> map_infhist_lines;
 	private HashMap<Long, HashMap<Long, File>> map_infhist_dir; // Key = CMAP_SEED,SIM_SEED
 
@@ -100,15 +98,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_PROB_BY_INFCOUNT = "PROP_EXTRACT_INFHIST_PROB_EVENT_PROB_BY_INFCOUNT"; // double[]
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_RANGE_BY_INFCOUNT = "PROP_EXTRACT_INFHIST_PROB_EVENT_RANGE_BY_INFCOUNT"; // int[]
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_AGE_RANGE = "PROP_EXTRACT_INFHIST_PROB_EVENT_AGE_RANGE"; // int[][]
-																														// (one
-																														// for
-																														// each
-																														// file)
-
-	// public static final String PROP_EXTRACT_INFHIST_INCL_CRITERIA =
-	// "PROP_EXTRACT_INFHIST_INCL_CRITERIA";
-
-	/**
+																															/**
 	 * 
 	 * @param args - String[]{ simulation_dir, cMap_dir_overwrite}
 	 */
@@ -157,7 +147,6 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		// From Runnable_MetaPopulation_MultiTransmission
 		map_indiv_stat = new HashMap<>();
 		map_infhist_lines = new HashMap<>();
-		// map_vacc_hist = new HashMap<>();
 		map_infhist_dir = new HashMap<>();
 
 	}
