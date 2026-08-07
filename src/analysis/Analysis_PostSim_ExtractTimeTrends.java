@@ -1235,9 +1235,9 @@ public class Analysis_PostSim_ExtractTimeTrends {
 								Analysis_PostSim_ExtractInfectionHistory.PROP_EXTRACT_INFHIST_COUNT_INCL_CRITERIA),
 						int[][].class);
 				if (Analysis_PostSim_ExtractInfectionHistory.EXTRACT_INFHIST_TYPE_EVENT_COUNT.equals(analysis_type)) {
-					analyseInfHist.print_event_count(incl_start_grps, sample_time, incl_criteria, target_filenames);
+					analyseInfHist.print_event_count(incl_start_grps, sample_time, incl_criteria, target_filenames,"InfectHist_Event_Count");
 				} else {
-					analyseInfHist.print_indivdual_count(incl_start_grps, sample_time, incl_criteria, target_filenames);
+					analyseInfHist.print_indivdual_count(incl_start_grps, sample_time, incl_criteria, target_filenames, "InfectHist_Indivdual_Count");
 				}
 
 			} else if (Analysis_PostSim_ExtractInfectionHistory.EXTRACT_INFHIST_TYPE_EVENT_PROB.equals(analysis_type)) {
@@ -1258,7 +1258,7 @@ public class Analysis_PostSim_ExtractTimeTrends {
 
 				for (int i = 0; i < target_filenames.length; i++) {
 					analyseInfHist.print_single_event_probability(incl_start_grps, sample_time, max_exposure,
-							event_prob_by_inf_count, inf_count_range, incl_age_range[i], target_filenames[i]);
+							event_prob_by_inf_count, inf_count_range, incl_age_range[i], target_filenames[i], "InfectHist_Event_Probability");
 				}
 
 			} else {

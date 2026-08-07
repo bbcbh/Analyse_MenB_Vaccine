@@ -98,7 +98,8 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_PROB_BY_INFCOUNT = "PROP_EXTRACT_INFHIST_PROB_EVENT_PROB_BY_INFCOUNT"; // double[]
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_RANGE_BY_INFCOUNT = "PROP_EXTRACT_INFHIST_PROB_EVENT_RANGE_BY_INFCOUNT"; // int[]
 	public static final String PROP_EXTRACT_INFHIST_PROB_EVENT_AGE_RANGE = "PROP_EXTRACT_INFHIST_PROB_EVENT_AGE_RANGE"; // int[][]
-																															/**
+
+	/**
 	 * 
 	 * @param args - String[]{ simulation_dir, cMap_dir_overwrite}
 	 */
@@ -150,6 +151,130 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		map_infhist_dir = new HashMap<>();
 
 	}
+
+	public void print_indivdual_count(int[] incl_start_grps, int[] sample_time, int[][] event_incl_criteria,
+			String[] target_files, String output_dir_name) throws IOException {
+		
+		File output_dir = new File(basedir, output_dir_name);
+		output_dir.mkdirs();
+		
+		PrintWriter[] pWri = new PrintWriter[target_files.length];
+		for (int i = 0; i < pWri.length; i++) {
+			pWri[i] = new PrintWriter(new FileWriter(new File(output_dir, target_files[i])));
+
+			pWri[i].print("Time");
+			for (int t = 0; t < sample_time.length; t++) {
+				pWri[i].print(',');
+				pWri[i].print(sample_time[t]);
+			}
+			pWri[i].println();
+
+		}
+
+		HashMap<String, ArrayList<int[]>> infHistMap = new HashMap<>();
+		HashMap<String, HashMap<Integer, int[]>> vaccMapByDir = new HashMap<>();
+		int[] last_sample_start_point = new int[event_incl_criteria.length];
+
+		for (File resDir : res_dirs) {
+			infHistMap.clear();
+			vaccMapByDir.clear();
+			infHistMap = loadInfHistMap_by_simDir(infHistMap, incl_start_grps, resDir);
+			vaccMapByDir = loadVaccHistMap_by_simDir(vaccMapByDir, incl_start_grps, resDir);
+
+			Arrays.fill(last_sample_start_point, Integer.MIN_VALUE);
+
+			String[] zip_ent_key = infHistMap.keySet().toArray(new String[0]);
+			Arrays.sort(zip_ent_key, cmp_zipEnt);
+
+			for (String ent_key : zip_ent_key) {
+				Matcher m_map_infhist = infect_hist_key.matcher(ent_key);
+				if (m_map_infhist.matches()) {
+					Long cMap = Long.valueOf(m_map_infhist.group(3));
+					Long simSeed = Long.valueOf(m_map_infhist.group(4));
+
+					HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+					HashMap<Integer, int[]> vaccMap = vaccMapByDir.get(String.format("%d_%d", cMap, simSeed));
+
+					double[][] indiv_count_all = new double[event_incl_criteria.length][sample_time.length];
+
+					ArrayList<int[]> inf_hist_rows = infHistMap.get(ent_key);
+
+					for (int r = 0; r < inf_hist_rows.size(); r++) {
+						int[] inf_hist_row = inf_hist_rows.get(r);
+						Integer id = inf_hist_row[0];
+
+						int[] indiv_map_ent = indivMap.get(id);
+						int[] vacc_map_ent = null;
+
+						if (vaccMap != null) {
+							vacc_map_ent = vaccMap.get(id);
+						}
+
+						int start_grp_point = Arrays.binarySearch(incl_start_grps,
+								indiv_map_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP]);
+
+						if (start_grp_point >= 0) {
+							Arrays.fill(last_sample_start_point, Integer.MIN_VALUE);
+
+							for (int inf_hist_pt = 2; inf_hist_pt < inf_hist_row.length; inf_hist_pt += 3) {
+								// int exposure_start = inf_hist_row[inf_pt];
+
+								if (inf_hist_row[inf_hist_pt] >= sample_time[sample_time.length - 1]) {
+									break;
+								} else if (inf_hist_row[inf_hist_pt] < sample_time[0]) {
+									continue;
+								}
+
+								int sample_start_point = Arrays.binarySearch(sample_time, inf_hist_row[inf_hist_pt]);
+
+								if (sample_start_point < 0) {
+									sample_start_point = ~sample_start_point;
+								}
+
+								for (int inclPt = 0; inclPt < event_incl_criteria.length; inclPt++) {
+									if (last_sample_start_point[inclPt] != sample_start_point) { // Skip those already
+																									// counted
+										int[] include_criteria = event_incl_criteria[inclPt];
+										boolean toIncl = check_include_criteria(indiv_map_ent, vacc_map_ent,
+												inf_hist_row, inf_hist_pt, include_criteria);
+										if (toIncl) {
+											indiv_count_all[inclPt][sample_start_point]++;
+											last_sample_start_point[inclPt] = sample_start_point;
+										}
+									}
+
+								}
+							}
+						}
+					}
+					// Print_Event count
+					for (int f = 0; f < indiv_count_all.length; f++) {
+						pWri[f].print(ent_key.replace(',', '_'));
+						for (int t = 0; t < indiv_count_all[f].length; t++) {
+							pWri[f].print(',');
+							pWri[f].print(indiv_count_all[f][t]);
+						}
+						pWri[f].println();
+						pWri[f].flush();
+					}
+
+				}
+
+			}
+
+		}
+		for (PrintWriter p : pWri) {
+			p.close();
+		}
+
+	}
+
+	/**
+	 * 
+	 * @deprecated Use print_indivdual_count(int[] incl_start_grps, int[]
+	 *             sample_time, int[][] event_incl_criteria, String[] target_files,
+	 *             String output_dir_name) instead to reduce Heap memory usage
+	 */
 
 	public void print_indivdual_count(int[] incl_start_grps, int[] sample_time, int[][] event_incl_criteria,
 			String[] target_files) throws IOException {
@@ -268,6 +393,116 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	}
 
 	public void print_event_count(int[] incl_start_grps, int[] sample_time, int[][] event_incl_criteria,
+			String[] target_files, String output_dir_name) throws IOException {
+
+		File output_dir = new File(basedir, output_dir_name);
+		output_dir.mkdirs();
+
+		PrintWriter[] pWri = new PrintWriter[target_files.length];
+		for (int i = 0; i < pWri.length; i++) {
+			pWri[i] = new PrintWriter(new FileWriter(new File(output_dir, target_files[i])));
+
+			pWri[i].print("Time");
+			for (int t = 0; t < sample_time.length; t++) {
+				pWri[i].print(',');
+				pWri[i].print(sample_time[t]);
+			}
+			pWri[i].println();
+		}
+
+		HashMap<String, ArrayList<int[]>> infHistMap = new HashMap<>();
+		HashMap<String, HashMap<Integer, int[]>> vaccMapByDir = new HashMap<>();
+
+		for (File resDir : res_dirs) {
+			infHistMap.clear();
+			vaccMapByDir.clear();
+
+			infHistMap = loadInfHistMap_by_simDir(infHistMap, incl_start_grps, resDir);
+			vaccMapByDir = loadVaccHistMap_by_simDir(vaccMapByDir, incl_start_grps, resDir);
+
+			String[] zip_ent_key = infHistMap.keySet().toArray(new String[0]);
+			Arrays.sort(zip_ent_key, cmp_zipEnt);
+
+			for (String ent_key : zip_ent_key) {
+				Matcher m_map_infhist = infect_hist_key.matcher(ent_key);
+				if (m_map_infhist.matches()) {
+					Long cMap = Long.valueOf(m_map_infhist.group(3));
+					Long simSeed = Long.valueOf(m_map_infhist.group(4));
+
+					HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+					HashMap<Integer, int[]> vaccMap = vaccMapByDir.get(String.format("%d_%d", cMap, simSeed));
+
+					double[][] event_count_all = new double[event_incl_criteria.length][sample_time.length];
+					ArrayList<int[]> inf_hist_rows = infHistMap.get(ent_key);
+
+					for (int r = 0; r < inf_hist_rows.size(); r++) {
+						int[] inf_hist_row = inf_hist_rows.get(r);
+						Integer id = inf_hist_row[0];
+						int[] indiv_map_ent = indivMap.get(id);
+						int[] vacc_map_ent = null;
+
+						if (vaccMap != null) {
+							vacc_map_ent = vaccMap.get(id);
+						}
+						int start_grp_point = Arrays.binarySearch(incl_start_grps,
+								indiv_map_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP]);
+						if (start_grp_point >= 0) {
+							for (int inf_hist_pt = 2; inf_hist_pt < inf_hist_row.length; inf_hist_pt += 3) {
+								if (inf_hist_row[inf_hist_pt] >= sample_time[sample_time.length - 1]) {
+									break;
+								} else if (inf_hist_row[inf_hist_pt] < sample_time[0]) {
+									continue;
+								}
+								int sample_start_point = Arrays.binarySearch(sample_time, inf_hist_row[inf_hist_pt]);
+
+								if (sample_start_point < 0) {
+									sample_start_point = ~sample_start_point;
+								}
+
+								for (int inclPt = 0; inclPt < event_incl_criteria.length; inclPt++) {
+									int[] include_criteria = event_incl_criteria[inclPt];
+									boolean toIncl = check_include_criteria(indiv_map_ent, vacc_map_ent, inf_hist_row,
+											inf_hist_pt, include_criteria);
+									if (toIncl) {
+										event_count_all[inclPt][sample_start_point]++;
+									}
+
+								}
+
+							}
+
+						}
+
+					}
+					// Print_Event count
+					for (int f = 0; f < event_count_all.length; f++) {
+						pWri[f].print(ent_key.replace(',', '_'));
+						for (int t = 0; t < event_count_all[f].length; t++) {
+							pWri[f].print(',');
+							pWri[f].print(event_count_all[f][t]);
+						}
+						pWri[f].println();
+						pWri[f].flush();
+					}
+
+				}
+
+			}
+		}
+
+		for (PrintWriter p : pWri) {
+			p.close();
+		}
+
+	}
+
+	/**
+	 * 
+	 * @deprecated Use print_event_count(int[] incl_start_grps, int[] sample_time,
+	 *             int[][] event_incl_criteria, String[] target_files, String output_dir_name) instead to reduce Heap memory usage
+	 */
+
+	public void print_event_count(int[] incl_start_grps, int[] sample_time, int[][] event_incl_criteria,
 			String[] target_files) throws IOException {
 
 		File output_dir = new File(basedir, "InfectHist_Event_Count");
@@ -298,7 +533,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 			if (m_map_infhist.matches()) {
 				Long cMap = Long.valueOf(m_map_infhist.group(3));
 				Long simSeed = Long.valueOf(m_map_infhist.group(4));
-				
+
 				File resDir = map_infhist_dir.get(cMap).get(simSeed);
 				if (!resDir.equals(lastVaccineDir)) {
 					vaccMapByDir.clear(); // Clear the old one
@@ -308,7 +543,6 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 
 				HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
 				HashMap<Integer, int[]> vaccMap = vaccMapByDir.get(String.format("%d_%d", cMap, simSeed));
-
 
 				double[][] event_count_all = new double[event_incl_criteria.length][sample_time.length];
 				ArrayList<int[]> inf_hist_rows = map_infhist_lines.get(ent_key);
@@ -443,6 +677,180 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		}
 		return toIncl;
 	}
+	
+	public void print_single_event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure,
+			double[] event_prob_by_inf_count, int[] inf_count_range, int[] incl_age_range, String target_file, String output_dir_name)
+			throws IOException {
+		
+		File output_dir = new File(basedir, output_dir_name);
+		output_dir.mkdirs();
+		
+		PrintWriter pWri = new PrintWriter(new FileWriter(new File(output_dir, target_file)));
+		pWri.print("Time");
+		for (int t = 0; t < sample_time.length; t++) {
+			pWri.print(',');
+			pWri.print(sample_time[t]);
+		}
+		pWri.println();
+		
+		HashMap<String, ArrayList<int[]>> infHistMap = new HashMap<>();
+		HashMap<String, HashMap<Integer, int[]>> vaccMapByDir = new HashMap<>();
+		
+		for (File resDir : res_dirs) {
+			infHistMap.clear();
+			vaccMapByDir.clear();
+			
+			infHistMap = loadInfHistMap_by_simDir(infHistMap, incl_start_grps, resDir);
+			vaccMapByDir = loadVaccHistMap_by_simDir(vaccMapByDir, incl_start_grps, resDir);
+
+			String[] zip_ent_key = infHistMap.keySet().toArray(new String[0]);
+			Arrays.sort(zip_ent_key, cmp_zipEnt);			
+			
+			for (String ent_key : zip_ent_key) {
+				Matcher m_map_infhist = infect_hist_key.matcher(ent_key);
+				if (m_map_infhist.matches()) {
+					Long cMap = Long.valueOf(m_map_infhist.group(3));
+					HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+					double[] event_prob_sum = new double[sample_time.length];
+
+					ArrayList<int[]> inf_hist_rows = infHistMap.get(ent_key);
+
+					for (int r = 0; r < inf_hist_rows.size(); r++) {
+						int[] row = inf_hist_rows.get(r);
+						Integer id = row[0];
+						int[] indiv_ent = indivMap.get(id);
+						int start_grp = indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+
+						if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+							HashMap<Integer, ArrayList<Double>> map_cumul_prob_by_window_pt = new HashMap<>();
+
+							int inf_count = 0;
+							for (int inf_pt = 2; inf_pt < row.length; inf_pt += 3) { //
+								int exposure_start = row[inf_pt];
+								// Stop checking if inf start after sample period
+								if (exposure_start >= sample_time[sample_time.length - 1]) {
+									break;
+								}
+								int exposure_end = exposure_start + max_exposure;
+								// For case where individual leave population before recovery
+								if (inf_pt + 1 >= row.length) {
+									exposure_end = Math.min(exposure_end,
+											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT]);
+								} else {
+									exposure_end = Math.min(exposure_end, row[inf_pt + 1]);
+								}
+
+								if (exposure_end > sample_time[0]) {
+									int sample_end_point = Arrays.binarySearch(sample_time,
+											Math.min(exposure_end, sample_time[sample_time.length - 1]));
+									if (sample_end_point < 0) {
+										sample_end_point = ~sample_end_point;
+									}
+									int sample_start_point = Arrays.binarySearch(sample_time,
+											Math.max(sample_time[0], exposure_start));
+									if (sample_start_point < 0) {
+										sample_start_point = ~sample_start_point;
+									}
+
+									// # past infection
+									int event_count_pt = Arrays.binarySearch(inf_count_range, inf_count);
+									if (event_count_pt < 0) {
+										event_count_pt = ~event_count_pt;
+									}
+
+									int current_window_pt = sample_start_point;
+
+									while (current_window_pt <= sample_end_point) {
+										if (current_window_pt > 0) {
+											double current_event_prob = event_prob_by_inf_count[Math
+													.min(event_prob_by_inf_count.length - 1, event_count_pt)];
+											// P(0), P(1) etc... within current window
+											ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt
+													.get(current_window_pt);
+											if (cumul_prob == null) {
+												cumul_prob = new ArrayList<>();
+												map_cumul_prob_by_window_pt.put(current_window_pt, cumul_prob);
+												cumul_prob.add(Double.valueOf(1)); // P(0) = 1
+											}
+
+											int exposure_start_adj = Math.max(exposure_start,
+													sample_time[current_window_pt - 1]);
+											int exposure_end_adj = Math.min(exposure_end, sample_time[current_window_pt]);
+
+											if (exposure_end_adj - exposure_start_adj < max_exposure) {
+												double pDayExp = 1
+														- Math.exp(Math.log(1 - current_event_prob) / max_exposure);
+												current_event_prob = 1
+														- Math.pow(1 - pDayExp, exposure_end_adj - exposure_start_adj);
+											}
+
+											// Update cumul_prod
+											cumul_prob.add(cumul_prob.get(cumul_prob.size() - 1) * current_event_prob);
+											for (int pI = cumul_prob.size() - 2; pI >= 1; pI--) {
+												cumul_prob.set(pI, cumul_prob.get(pI) * (1 - current_event_prob)
+														+ cumul_prob.get(pI - 1) * current_event_prob);
+											}
+											cumul_prob.set(0, cumul_prob.get(0) * (1 - current_event_prob));
+										}
+										current_window_pt++;
+
+									}
+								}
+								inf_count++;
+							}
+
+							if (!map_cumul_prob_by_window_pt.isEmpty()) {
+								Integer[] window_pts_array = map_cumul_prob_by_window_pt.keySet().toArray(new Integer[0]);
+								Arrays.sort(window_pts_array);
+
+								for (int wPt : window_pts_array) {
+									ArrayList<Double> cumul_prob = map_cumul_prob_by_window_pt.get(wPt);
+									if (cumul_prob.size() > 1) {
+										// Update event_prob_sum
+										double weighted_mean = 0;
+										for (int i = 1; i < cumul_prob.size(); i++) {
+											weighted_mean += i * cumul_prob.get(i);
+										}
+										boolean toIncl = incl_age_range == null || incl_age_range.length == 0;
+										if (!toIncl) {
+											// Check if the probability is within age range
+											int age = sample_time[wPt]
+													- indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT];
+											age += indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE];
+											toIncl = age >= incl_age_range[0] && age < incl_age_range[1];
+										}
+										if (toIncl) {
+											event_prob_sum[wPt] += weighted_mean;
+										}
+									}
+								}
+							}
+
+						} // End of if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+
+					} // End of for (int r = 1; r < inf_hist_rows.size(); r++) {
+
+					// Print probability output
+					pWri.print(ent_key.replace(',', '_'));
+					for (int t = 0; t < event_prob_sum.length; t++) {
+						pWri.print(',');
+						pWri.print(event_prob_sum[t]);
+					}
+					pWri.println();
+					pWri.flush();
+				}
+			}									
+		}
+		
+		
+		pWri.close();
+	}
+	
+	/**
+	 * @deprecated Use print_single_event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure, 
+	 * double[] event_prob_by_inf_count, int[] inf_count_range, int[] incl_age_range, String target_file, String output_dir_name)
+	 * to reduce Heap memory usage
+	 */
 
 	public void print_single_event_probability(int[] incl_start_grps, int[] sample_time, int max_exposure,
 			double[] event_prob_by_inf_count, int[] inf_count_range, int[] incl_age_range, String target_file)
@@ -604,7 +1012,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 	}
 
 	private HashMap<String, HashMap<Integer, int[]>> loadVaccHistMap_by_simDir(
-			HashMap<String, HashMap<Integer, int[]>> vaccMapByCMap, int[] incl_start_grps, File res_dir) {
+			HashMap<String, HashMap<Integer, int[]>> vaccMapBySeedStr, int[] incl_start_grps, File res_dir) {
 
 		SevenZArchiveEntry inputEnt;
 		final int BUFFER = 2048;
@@ -633,11 +1041,11 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 							Long simSeed = Long.valueOf(m_map_vacchist.group(4));
 							String key = String.format("%d_%d", cMap, simSeed);
 
-							HashMap<Integer, int[]> vaccMap = vaccMapByCMap.get(key);
+							HashMap<Integer, int[]> vaccMap = vaccMapBySeedStr.get(key);
 
 							if (vaccMap == null) {
 								vaccMap = new HashMap<>();
-								vaccMapByCMap.put(key, vaccMap);
+								vaccMapBySeedStr.put(key, vaccMap);
 							}
 
 							// Load all line
@@ -694,7 +1102,7 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 			}
 		}
 
-		return vaccMapByCMap;
+		return vaccMapBySeedStr;
 	}
 
 //	private void loadVaccHistMap(int[] incl_start_grps) throws IOException {
@@ -797,6 +1205,23 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 //
 //	}
 
+	private HashMap<String, ArrayList<int[]>> loadInfHistMap_by_simDir(HashMap<String, ArrayList<int[]>> infHistMap,
+			int[] incl_start_grps, File res_dir) {
+
+		File[] file_infhist_7z = res_dir.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File pathname) {
+				return infect_hist_7z_format.matcher(pathname.getName()).matches();
+			}
+		});
+
+		for (File zip : file_infhist_7z) {
+			loadInfHistMap_by_Zip(infHistMap, incl_start_grps, res_dir, zip);
+		}
+
+		return infHistMap;
+	}
+
 	private void loadInfHistMap(int[] check_incl_start_grps) throws IOException {
 		ArrayList<Integer> to_load_start_grp = new ArrayList<>();
 
@@ -810,8 +1235,10 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 		}
 
 		if (!to_load_start_grp.isEmpty()) {
-			Integer[] incl_start_grps = to_load_start_grp.toArray(new Integer[0]);
-
+			int[] incl_start_grps = new int[to_load_start_grp.size()];
+			for (int i = 0; i < incl_start_grps.length; i++) {
+				incl_start_grps[i] = to_load_start_grp.get(i).intValue();
+			}
 			for (File res_dir : res_dirs) {
 				File[] file_infhist_7z = res_dir.listFiles(new FileFilter() {
 					@Override
@@ -820,128 +1247,129 @@ public class Analysis_PostSim_ExtractInfectionHistory {
 					}
 				});
 
+				HashMap<String, ArrayList<int[]>> infhistMap = this.map_infhist_lines;
+
 				for (File zip : file_infhist_7z) {
-
-					// System.out.printf("Loading Infection History from %s.\n",
-					// zip.getAbsolutePath());
-
-					// map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip,
-					// map_infhist_lines, null);
-					SevenZArchiveEntry inputEnt;
-					final int BUFFER = 2048;
-
-					try {
-						SevenZFile inputZip = new SevenZFile(zip);
-
-						while ((inputEnt = inputZip.getNextEntry()) != null) {
-							if (!inputEnt.isDirectory()) {
-								String entName = inputEnt.getName();
-								// Load map_indiv_stat for each map
-								Matcher m_map_infhist = infect_hist_key.matcher(entName);
-								if (m_map_infhist.matches()) {
-									Long cMap = Long.valueOf(m_map_infhist.group(3));
-									Long simSeed = Long.valueOf(m_map_infhist.group(4));
-
-									HashMap<Long, File> ent_by_cMap = map_infhist_dir.get(cMap);
-									if (ent_by_cMap == null) {
-										ent_by_cMap = new HashMap<>();
-										map_infhist_dir.put(cMap, ent_by_cMap);
-									}
-									ent_by_cMap.put(simSeed, res_dir);
-
-									HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
-									if (indivMap == null) {
-										indivMap = new HashMap<>();
-										map_indiv_stat.put(cMap, indivMap);
-
-										File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
-
-										if (cMap_dir_overwrite != null) {
-											demo_dir = cMap_dir_overwrite;
-										}
-
-										demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
-										String[] pop_stat_line = StaticMethods.extracted_lines_from_text(
-												new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
-										// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
-										for (int i = 1; i < pop_stat_line.length; i++) {
-											String[] lineEnt = pop_stat_line[i].split(",");
-											int[] indiv_ent = new int[Runnable_MetaPopulation_MultiTransmission.LENGTH_INDIV_MAP];
-											indivMap.put(Integer.valueOf(lineEnt[0]), indiv_ent);
-											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP] = Integer
-													.parseInt(lineEnt[1]);
-											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE] = Integer
-													.parseInt(lineEnt[2]);
-											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT] = Integer
-													.parseInt(lineEnt[3]);
-											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT] = Integer
-													.parseInt(lineEnt[4]);
-											indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
-													.parseInt(lineEnt[5]);
-										}
-
-										System.out.printf("Popstat from %s loaded.\n", demo_dir.getAbsolutePath());
-									}
-
-									// Load all line
-									int size = (int) inputEnt.getSize();
-
-									byte[] content = new byte[size];
-									int offset = 0;
-									while (offset < size) {
-										int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
-										if (readLen < 0) {
-											break;
-										}
-										offset += readLen;
-									}
-
-									ArrayList<int[]> lines_split = new ArrayList<>();
-
-									BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
-
-									lines.readLine(); // Skip first line
-
-									String line;
-									while ((line = lines.readLine()) != null) {
-										String[] lineEnt = line.split(",");
-										int[] val = new int[lineEnt.length];
-										for (int c = 0; c < val.length; c++) {
-											val[c] = Integer.parseInt(lineEnt[c].strip());
-										}
-										if (incl_start_grps == null) {
-											lines_split.add(val);
-										} else {
-											// Only load line with start_grp in incl_start_grps
-											Integer id = val[0];
-											int start_grp = indivMap.get(
-													id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
-											if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
-												lines_split.add(val);
-											}
-										}
-
-									}
-									map_infhist_lines.put(entName, lines_split);
-
-								} else {
-									System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n",
-											entName);
-								}
-
-							}
-						}
-						inputZip.close();
-					} catch (IOException e) {
-						System.err.printf("Error when reading zip file %s. Zip file ignored.\n", zip.getAbsolutePath());
-						e.printStackTrace(System.err);
-					}
+					loadInfHistMap_by_Zip(infhistMap, incl_start_grps, res_dir, zip);
 				}
 
-			}
-			// loadVaccHistMap(check_incl_start_grps);
+			}			
 		}
 
+	}
+
+	private void loadInfHistMap_by_Zip(HashMap<String, ArrayList<int[]>> infhistMap, int[] incl_start_grps,
+			File res_dir, File zip) {
+		// map_infhist_lines = StaticMethods.extractedLinesFrom7Zip(zip,
+		// map_infhist_lines, null);
+		SevenZArchiveEntry inputEnt;
+		final int BUFFER = 2048;
+
+		try {
+			SevenZFile inputZip = new SevenZFile(zip);
+
+			while ((inputEnt = inputZip.getNextEntry()) != null) {
+				if (!inputEnt.isDirectory()) {
+					String entName = inputEnt.getName();
+					// Load map_indiv_stat for each map
+					Matcher m_map_infhist = infect_hist_key.matcher(entName);
+					if (m_map_infhist.matches()) {
+						Long cMap = Long.valueOf(m_map_infhist.group(3));
+						Long simSeed = Long.valueOf(m_map_infhist.group(4));
+
+						HashMap<Long, File> ent_by_cMap = map_infhist_dir.get(cMap);
+						if (ent_by_cMap == null) {
+							ent_by_cMap = new HashMap<>();
+							map_infhist_dir.put(cMap, ent_by_cMap);
+						}
+						ent_by_cMap.put(simSeed, res_dir);
+
+						HashMap<Integer, int[]> indivMap = map_indiv_stat.get(cMap);
+						if (indivMap == null) {
+							indivMap = new HashMap<>();
+							map_indiv_stat.put(cMap, indivMap);
+
+							File demo_dir = new File(prop.getProperty("PROP_CONTACT_MAP_LOC"));
+
+							if (cMap_dir_overwrite != null) {
+								demo_dir = cMap_dir_overwrite;
+							}
+
+							demo_dir = new File(demo_dir, String.format("Demographic_%d", cMap));
+							String[] pop_stat_line = StaticMethods.extracted_lines_from_text(
+									new File(demo_dir, String.format("POP_STAT_%d.csv", cMap)));
+							// ID,GRP,ENTER_POP_AGE,ENTER_POP_AT,EXIT_POP_AT,HOME_LOC
+							for (int i = 1; i < pop_stat_line.length; i++) {
+								String[] lineEnt = pop_stat_line[i].split(",");
+								int[] indiv_ent = new int[Runnable_MetaPopulation_MultiTransmission.LENGTH_INDIV_MAP];
+								indivMap.put(Integer.valueOf(lineEnt[0]), indiv_ent);
+								indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP] = Integer
+										.parseInt(lineEnt[1]);
+								indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AGE] = Integer
+										.parseInt(lineEnt[2]);
+								indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_POP_AT] = Integer
+										.parseInt(lineEnt[3]);
+								indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_EXIT_POP_AT] = Integer
+										.parseInt(lineEnt[4]);
+								indiv_ent[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_HOME_LOC] = Integer
+										.parseInt(lineEnt[5]);
+							}
+
+							System.out.printf("Popstat from %s loaded.\n", demo_dir.getAbsolutePath());
+						}
+
+						// Load all line
+						int size = (int) inputEnt.getSize();
+
+						byte[] content = new byte[size];
+						int offset = 0;
+						while (offset < size) {
+							int readLen = inputZip.read(content, offset, Math.min(BUFFER, size - offset));
+							if (readLen < 0) {
+								break;
+							}
+							offset += readLen;
+						}
+
+						ArrayList<int[]> lines_split = new ArrayList<>();
+
+						BufferedReader lines = new BufferedReader(new StringReader(new String(content)));
+
+						lines.readLine(); // Skip first line
+
+						String line;
+						while ((line = lines.readLine()) != null) {
+							String[] lineEnt = line.split(",");
+							int[] val = new int[lineEnt.length];
+							for (int c = 0; c < val.length; c++) {
+								val[c] = Integer.parseInt(lineEnt[c].strip());
+							}
+							if (incl_start_grps == null) {
+								lines_split.add(val);
+							} else {
+								// Only load line with start_grp in incl_start_grps
+								Integer id = val[0];
+								int start_grp = indivMap
+										.get(id)[Runnable_MetaPopulation_MultiTransmission.INDIV_MAP_ENTER_GRP];
+								if (Arrays.binarySearch(incl_start_grps, start_grp) >= 0) {
+									lines_split.add(val);
+								}
+							}
+
+						}
+						infhistMap.put(entName, lines_split);
+
+					} else {
+						System.err.printf("Warning! Illformed zip file entry %s. Entry ignored.\n", entName);
+					}
+
+				}
+			}
+			inputZip.close();
+		} catch (IOException e) {
+			System.err.printf("Error when reading zip file %s. Zip file ignored.\n", zip.getAbsolutePath());
+			e.printStackTrace(System.err);
+		}
 	}
 
 	public static void generateInfectionHistCSV(HashMap<String, double[][]> resultmaps, int[] sample_time,
