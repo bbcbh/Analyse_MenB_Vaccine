@@ -211,23 +211,30 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 				}
 
 			};
-			sim.setPrintProgress(printProgess);
-
+			sim.setPrintProgress(printProgess);		
 			Simulation_ClusterModelTransmission.launch(arg_simulation, sim);
+			
 
 			// Generate analyse result
 			Analysis_PostSim_ExtractTimeTrends analyse_optRes = new Analysis_PostSim_ExtractTimeTrends();
 			analyse_optRes.setMap_timetrend(Map.ofEntries( //
-					Map.entry("Timetrend_Treatment_by_GrpLoc_%s.csv", Pattern.compile(".*Treatment_by_GrpLoc_.*csv"))));
+					Map.entry("Timetrend_Treatment_by_GrpLoc_%s.csv", Pattern.compile(".*Treatment_by_GrpLoc_.*csv")),
+					Map.entry("Timetrend_Infectious_by_GrpLoc_%s.csv",
+							Pattern.compile(".*Infectious_by_GrpLoc_.*csv"))));
 
 			analyse_optRes.setRegion_extract_array(new String[][] { //
-					new String[] { "Timetrend_Treatment_by_GrpLoc_%s.csv" }, //
-					new String[] { "Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv" }, //
-					new String[] { "Timetrend_Treatment_%s_at_%s.csv" } });
+					new String[] { //
+							"Timetrend_Treatment_by_GrpLoc_%s.csv", //
+							"Timetrend_Infectious_by_GrpLoc_%s.csv" }, //
+					new String[] { //
+							"Timetrend_Treatment_by_GrpLoc_Grp_%d_Loc_%d.csv", //
+							"Timetrend_Infectious_by_GrpLoc_Grp_%d_Loc_%d.csv" }, //
+					new String[] { //
+							"Timetrend_Treatment_%s_at_%s.csv", //
+							"Timetrend_Infectious_%s_at_%s.csv" } });
 
 			analyse_optRes.setPattern_sim(Pattern.compile(seedDir.getName()));
-
-			analyse_optRes.analyse(args_analysis);
+			analyse_optRes.analyse(args_analysis);			
 
 			// Calculate objective function based on analysis
 			File outTxt = new File(working_dir, Abstract_Optimisation.fileformat_output_txt);
@@ -340,11 +347,19 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 						double row_sq_diff = 0;
 						for (int s = 0; s < rowEnt.length; s++) {
 							if (opt_target_pt < opt_setting[f].length) {
-								double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
-										/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
-								row_sq_diff += step_adj * opt_setting[f][OPT_SETTING_WEIGHT]
-										* Math.pow(opt_setting[f][opt_target_pt] - converted_rate, 2);
-								treatment_rate_total += converted_rate;
+								if (opt_setting[f][OPT_SETTING_WEIGHT] <= 0) { 
+									// Snapshot measure (e.g. prevalence)
+									row_sq_diff += step_adj * -opt_setting[f][OPT_SETTING_WEIGHT] 
+											* Math.pow(opt_setting[f][opt_target_pt] -
+													rowEnt[s]/opt_setting[f][OPT_SETTING_MODEL_POP_SIZE],2);								
+								} else {
+									// Cumulative measure (e.g. treatment rate)
+									double converted_rate = (rowEnt[s] - pre_rowEnt[s]) * 100000.0
+											/ opt_setting[f][OPT_SETTING_MODEL_POP_SIZE];
+									row_sq_diff += step_adj * opt_setting[f][OPT_SETTING_WEIGHT]
+											* Math.pow(opt_setting[f][opt_target_pt] - converted_rate, 2);
+									treatment_rate_total += converted_rate;
+								}
 							}
 						}
 						row_sq_diff = row_sq_diff / rowEnt.length; // Average of all simulation (if more than one)
@@ -387,11 +402,10 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 			wriOutTxt.close();
 
 			// Generate outcome file
-			
-			Abstract_Optimisation.generateResidueOutcomeFiles(new File(def_filepath[FILEPATH_SIM_DIR]), def_filepath[FILEPATH_SEED_DIR], 					
-					default_seed_file_header, seed_val_str, point, treatment_fit);	
-			
-			
+
+			Abstract_Optimisation.generateResidueOutcomeFiles(new File(def_filepath[FILEPATH_SIM_DIR]),
+					def_filepath[FILEPATH_SEED_DIR], default_seed_file_header, seed_val_str, point, treatment_fit);
+
 //			File file_outcome = new File(def_filepath[FILEPATH_SIM_DIR],
 //					String.format(Abstract_Optimisation.fileformat_opt_outcomes, def_filepath[FILEPATH_SEED_DIR]));
 //
@@ -435,6 +449,5 @@ public class ResidualFunc_RMP implements MultivariateFunction {
 		}
 		return treatment_fit;
 	}
-	
 
 }
