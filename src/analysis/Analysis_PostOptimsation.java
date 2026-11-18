@@ -18,21 +18,21 @@ import optimisation.Abstract_Optimisation;
 import util.StaticMethods;
 
 public class Analysis_PostOptimsation {
-	
+
 	public final static String filenameformat_optResultsByMap = "OptResult_%d.csv";
-	
-	private final static String filenameformat_bestResByMap = "OptResult_BestPerMap.csv";	
-	private final static Pattern pattern_param_list = Pattern.compile(
-			String.format(Abstract_Optimisation.fileformat_opt_outcomes,"(.*)_(\\d+)\\")						
+
+	private final static String filenameformat_bestResByMap = "OptResult_BestPerMap.csv";
+	private final static Pattern pattern_param_list = Pattern
+			.compile(String.format(Abstract_Optimisation.fileformat_opt_outcomes, "(.*)_(\\d+)\\")
 //			"OptProgress_ParamList_(.*)_(\\d+)\\.csv"			
 			);
-	
+
 	private static class OptResult_Ent {
 		final Double residue;
 		final String line;
 		final String fName;
 		final Long cMap;
-		
+
 		private OptResult_Ent(String line, String fName) {
 			this.line = line;
 			this.fName = fName;
@@ -42,14 +42,23 @@ public class Analysis_PostOptimsation {
 		}
 	}
 
-	public static void analysis(String baseSimDirName, String csvDirName) throws FileNotFoundException, IOException {
+	public static void analysis(String baseSimDirName, String csvDirNames) throws FileNotFoundException, IOException {
 
 		File baseDir = new File(baseSimDirName);
+
+		String[] csvDirsNameArr = csvDirNames.split(",");
 
 		File[] optBestDirs = baseDir.listFiles(new FileFilter() {
 			@Override
 			public boolean accept(File pathname) {
-				return pathname.isDirectory() && new File(pathname, csvDirName).isDirectory();
+				boolean res = pathname.isDirectory();
+				res &= pathname.getName().startsWith("BestFit_");
+
+				for (int s = 0; s < csvDirsNameArr.length && res; s++) {
+					res &= new File(pathname, csvDirsNameArr[s]).isDirectory();
+				}
+
+				return res;
 			}
 		});
 
@@ -59,64 +68,67 @@ public class Analysis_PostOptimsation {
 
 		for (File optBestDir : optBestDirs) {
 
-			File csv_dir = new File(optBestDir, csvDirName);
+			for (String csvDir : csvDirsNameArr) {
 
-			File[] csv_list = csv_dir.listFiles(new FileFilter() {
-				@Override
-				public boolean accept(File pathname) {
-					return pathname.getName().endsWith("csv");
-				}
-			});
-			for (File csv : csv_list) {
-				System.out.printf("Looking into %s\n", csv.getAbsolutePath());
-				String key = csv.getName();
-				String[] lines = StaticMethods.extracted_lines_from_text(csv);
-				StringBuilder bld;
-				String[] ent;
+				File csv_dir = new File(optBestDir, csvDir);
 
-				ArrayList<StringBuilder> lines_arr = map_lines_collections.get(key);
-
-				if (lines_arr == null) {
-					lines_arr = new ArrayList<>();
-					map_lines_collections.put(key, lines_arr);
-				}
-				if (lines_arr.size() == 0) {
-					// Add header and first time column
-					for (String s : lines) {
-						bld = new StringBuilder();
-						bld.append(s.split(",")[0]);
-						lines_arr.add(bld);
+				File[] csv_list = csv_dir.listFiles(new FileFilter() {
+					@Override
+					public boolean accept(File pathname) {
+						return pathname.getName().endsWith("csv");
 					}
-				}
+				});
+				for (File csv : csv_list) {
+					System.out.printf("Looking into %s\n", csv.getAbsolutePath());
+					String key = csv.getName();
+					String[] lines = StaticMethods.extracted_lines_from_text(csv);
+					StringBuilder bld;
+					String[] ent;
 
-				// Header
-				bld = lines_arr.get(0);
-				ent = lines[0].split(",");
+					ArrayList<StringBuilder> lines_arr = map_lines_collections.get(key);
 
-				for (int c = 1; c < ent.length; c++) {
-					bld.append(',');
-					bld.append(String.format("%s:%s", optBestDir.getName(), ent[c]));
-				}
-
-				// Entry
-				for (int r = 1; r < lines_arr.size(); r++) {
-					bld = lines_arr.get(r);
-					if (r < lines.length) {
-						ent = lines[r].split(",");
-						for (int c = 1; c < ent.length; c++) {
-							bld.append(',');
-							bld.append(ent[c]);
+					if (lines_arr == null) {
+						lines_arr = new ArrayList<>();
+						map_lines_collections.put(key, lines_arr);
+					}
+					if (lines_arr.size() == 0) {
+						// Add header and first time column
+						for (String s : lines) {
+							bld = new StringBuilder();
+							bld.append(s.split(",")[0]);
+							lines_arr.add(bld);
 						}
-					} else {
-						System.err.printf("Error! Number of lines in %s doesn't match with first result.\n");
-						System.exit(-1);
+					}
+
+					// Header
+					bld = lines_arr.get(0);
+					ent = lines[0].split(",");
+
+					for (int c = 1; c < ent.length; c++) {
+						bld.append(',');
+						bld.append(String.format("%s:%s", optBestDir.getName(), ent[c]));
+					}
+
+					// Entry
+					for (int r = 1; r < lines_arr.size(); r++) {
+						bld = lines_arr.get(r);
+						if (r < lines.length) {
+							ent = lines[r].split(",");
+							for (int c = 1; c < ent.length; c++) {
+								bld.append(',');
+								bld.append(ent[c]);
+							}
+						} else {
+							System.err.printf("Error! Number of lines in %s doesn't match with first result.\n");
+							System.exit(-1);
+						}
 					}
 				}
 			}
 		}
 
 		// Print grouped result
-		File outputDir = new File(baseDir, csvDirName);
+		File outputDir = new File(baseDir, "GroupedResult_BestFit");
 		outputDir.mkdirs();
 
 		for (Entry<String, ArrayList<StringBuilder>> ent : map_lines_collections.entrySet()) {
@@ -219,7 +231,8 @@ public class Analysis_PostOptimsation {
 			pri_best_per_map.printf("DIR_NAME,%s\n", header);
 
 			for (Entry<Long, ArrayList<OptResult_Ent>> ent : optResultByCMap.entrySet()) {
-				File optResultCMap_CSV = new File(resultDirs, String.format(filenameformat_optResultsByMap, ent.getKey()));
+				File optResultCMap_CSV = new File(resultDirs,
+						String.format(filenameformat_optResultsByMap, ent.getKey()));
 				PrintWriter pWri = new PrintWriter(optResultCMap_CSV);
 				pWri.printf("DIR_NAME,%s\n", header);
 
